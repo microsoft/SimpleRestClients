@@ -1,0 +1,134 @@
+﻿/**
+* GenericRestClient.ts
+* Author: David de Regt
+* Copyright: Microsoft 2015
+*
+* Base client type for accessing RESTful services
+*/
+
+import _ = require('lodash');
+import assert = require('assert');
+import SyncTasks = require('synctasks');
+
+import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
+
+export type HttpAction = 'POST'|'GET'|'PUT'|'DELETE'|'PATCH';
+
+export interface ApiCallOptions extends WebRequestOptions {
+    backendUrl?: string;
+    excludeEndpointUrl?: boolean;
+    eTag?: string;
+}
+
+export interface ETagResponse<T> {
+    // Indicates whether the provided ETag matched. If true,
+    // the response is undefined.
+    eTagMatched?: boolean;
+
+    // If the ETag didn't match, the response contains the updated
+    // information.
+    response?: T;
+
+    // The updated ETag value.
+    eTag?: string;
+}
+
+export class GenericRestClient {
+    protected _endpointUrl: string;
+
+    protected _defaultOptions: ApiCallOptions = {
+        withCredentials: false,
+        retries: 0,
+        excludeEndpointUrl: false
+    };
+
+    constructor(endpointUrl: string) {
+        this._endpointUrl = endpointUrl;
+    }
+
+    protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions)
+            : SyncTasks.Promise<WebResponse<T>> {
+        let options = _.defaults<ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+
+        if (objToPost) {
+            options.sendData = objToPost;
+        }
+
+        let promise = this._blockRequestUntil(options);
+        if (!promise) {
+            return this._performApiCallInternal(apiPath, action, options);
+        }
+        return promise.then(() => this._performApiCallInternal(apiPath, action, options));
+    }
+
+    private _performApiCallInternal<T>(apiPath: string, action: HttpAction, options: ApiCallOptions)
+            : SyncTasks.Promise<WebResponse<T>> {
+        if (!options.headers) {
+            options.headers = this._getHeaders();
+        }
+
+        if (options.eTag) {
+            options.headers['If-None-Match'] = options.eTag;
+        }
+
+        if (!options.contentType) {
+            options.contentType = _.isString(options.sendData) ? 'form' : 'json';
+        }
+
+        const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
+
+        let request = new SimpleWebRequest<T>(action, finalUrl, options);
+        return request.start().then(resp => {
+            this._processSuccessResponse<T>(resp);
+            return resp;
+        });
+    }
+
+    protected _getHeaders(): _.Dictionary<string> {
+        // Virtual function -- No-op by default
+        return {};
+    }
+
+    // Override (but make sure to call super and chain appropriately) this function if you want to add more blocking criteria.
+    protected _blockRequestUntil(options: ApiCallOptions): void|SyncTasks.Promise<void> {
+        // No-op by default
+        return undefined;
+    }
+
+    // Override this function to process any generic headers that come down with a successful response
+    protected _processSuccessResponse<T>(resp: WebResponse<T>): void {
+        // No-op by default
+    }
+
+    performApiGet<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+        return this._performApiCall<T>(apiPath, 'GET', null, options).then(details => {
+            return details.body;
+        });
+    }
+
+    performApiGetDetailed<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+        return this._performApiCall<T>(apiPath, 'GET', null, options);
+    }
+
+    performApiPost<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+        return this.performApiPostDetailed<T>(apiPath, objToPost, options).then(details => {
+            return details.body;
+        });
+    }
+
+    performApiPostDetailed<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+        return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
+    }
+
+    performApiPatch<T>(apiPath: string, objToPatch: any): SyncTasks.Promise<T> {
+        return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, null).then(resp => resp.body);
+    }
+
+    performApiPut(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<void> {
+        return this._performApiCall<void>(apiPath, 'PUT', objToPut, options).then(_.noop);
+    }
+
+    performApiDelete(apiPath: string, objToDelete: any = null, options: ApiCallOptions = null): SyncTasks.Promise<void> {
+        return this._performApiCall<void>(apiPath, 'DELETE', objToDelete, options).then(_.noop);
+    }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "simplerestclients",
+  "version": "0.0.1",
+  "description": "A library of components for accessing RESTful services with javascript/typescript.",
+  "author": "David de Regt <David.de.Regt@microsoft.com>",
+  "scripts": {
+    "prepublish": "tsc",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "assert": "^1.4.1",
+    "lodash": "3.x || 4.x",
+    "synctasks": "^0.2.10"
+  },
+  "devDependencies": {
+    "typescript": "^2.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Microsoft/SimpleRestClients"
+  },
+  "main": "index.js",
+  "bugs": {
+    "url": "https://github.com/Microsoft/SimpleRestClients/issues"
+  },
+  "keywords": [
+    "simplerestclient",
+    "rest",
+    "restclient",
+    "xmlhttprequest",
+    "superagent"
+  ],
+  "license": "MIT",
+  "types": "dist/SimpleRestClients.d.ts"
+}
