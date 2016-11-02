@@ -15,12 +15,12 @@ export class ExponentialTime {
     private _currentTime: number;
     private _incrementCount: number;
 
-	/**
-	 * @param initialTime  multiplier of exponent
-	 * @param maxTime      delays won't be greater than this
-	 * @param growFactor   base of exponent
-	 * @param jitterFactor
-	 */
+    /**
+     * @param initialTime  multiplier of exponent
+     * @param maxTime      delays won't be greater than this
+     * @param growFactor   base of exponent
+     * @param jitterFactor
+     */
     constructor(private _initialTime: number,
             private _maxTime: number,
             private _growFactor = DEFAULT_TIME_GROW_FACTOR,
@@ -74,9 +74,9 @@ export class ExponentialTime {
         return this._currentTime;
     }
 
-	/**
-	 * @return first call returns initialTime, next calls will return initialTime*growFactor^n + jitter
-	 */
+    /**
+     * @return first call returns initialTime, next calls will return initialTime*growFactor^n + jitter
+     */
     getTimeAndCalculateNext(): number {
         const res = this.getTime();
         this.calculateNext();
