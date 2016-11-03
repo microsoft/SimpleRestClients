@@ -4,9 +4,7 @@
         "noResolve": false,
         "module": "commonjs",
         "target": "es5",
-        "experimentalDecorators": true,
         "noImplicitAny": true,
-        "suppressImplicitAnyIndexErrors":  true,
         "outDir": "dist/"
     },
     

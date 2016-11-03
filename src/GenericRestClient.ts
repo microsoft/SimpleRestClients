@@ -6,8 +6,8 @@
 * Base client type for accessing RESTful services
 */
 
-import _ = require('lodash');
 import assert = require('assert');
+import _ = require('lodash');
 import SyncTasks = require('synctasks');
 
 import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
@@ -101,34 +101,37 @@ export class GenericRestClient {
     }
 
     performApiGet<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<T> {
-        return this._performApiCall<T>(apiPath, 'GET', null, options).then(details => {
-            return details.body;
-        });
+        return this.performApiGetDetailed(apiPath, options).then(resp => resp.body);
     }
-
     performApiGetDetailed<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'GET', null, options);
     }
 
     performApiPost<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
-        return this.performApiPostDetailed<T>(apiPath, objToPost, options).then(details => {
-            return details.body;
-        });
+        return this.performApiPostDetailed(apiPath, objToPost, options).then(resp => resp.body);
     }
-
     performApiPostDetailed<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
-    performApiPatch<T>(apiPath: string, objToPatch: any): SyncTasks.Promise<T> {
-        return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, null).then(resp => resp.body);
+    performApiPatch<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+        return this.performApiPatchDetailed(apiPath, objToPatch, options).then(resp => resp.body);
+    }
+    performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+        return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
     performApiPut(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<void> {
-        return this._performApiCall<void>(apiPath, 'PUT', objToPut, options).then(_.noop);
+        return this.performApiPutDetailed(apiPath, objToPut, options).then(_.noop);
+    }
+    performApiPutDetailed(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<void>> {
+        return this._performApiCall<void>(apiPath, 'PUT', objToPut, options);
     }
 
     performApiDelete(apiPath: string, objToDelete: any = null, options: ApiCallOptions = null): SyncTasks.Promise<void> {
-        return this._performApiCall<void>(apiPath, 'DELETE', objToDelete, options).then(_.noop);
+        return this.performApiDeleteDetailed(apiPath, objToDelete, options).then(_.noop);
+    }
+    performApiDeleteDetailed(apiPath: string, objToDelete: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<void>> {
+        return this._performApiCall<void>(apiPath, 'DELETE', objToDelete, options);
     }
 }

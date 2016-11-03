@@ -6,8 +6,8 @@
 * Simple client for issuing web requests.
 */
 
-import _ = require('lodash');
 import assert = require('assert');
+import _ = require('lodash');
 import SyncTasks = require('synctasks');
 
 import { ExponentialTime } from './ExponentialTime';
@@ -69,6 +69,8 @@ export interface XMLHttpRequestProgressEvent extends Event {
     totalSize: number;
 }
 
+export type SendDataType = Object | string | NativeFileData;
+
 export interface WebRequestOptions {
     withCredentials?: boolean;
     retries?: number;
@@ -76,7 +78,7 @@ export interface WebRequestOptions {
     timeout?: number;
     acceptType?: string;
     contentType?: string;
-    sendData?: Object | string | NativeFileData;
+    sendData?: SendDataType;
     headers?: _.Dictionary<string>;
 
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
@@ -94,7 +96,7 @@ function isFormContentType(ct: string) {
 }
 
 export let DefaultOptions: WebRequestOptions = {
-    priority: WebRequestPriority.DontCare
+    priority: WebRequestPriority.Normal
 };
 
 export interface SimpleWebRequestOptions {
@@ -310,18 +312,7 @@ export class SimpleWebRequest<T> {
             const contentType = SimpleWebRequest.mapContentType(this._options.contentType || 'json');
             this._xhr.setRequestHeader('Content-Type', contentType);
 
-            let sendData = this._options.sendData;
-            if (isJsonContentType(contentType)) {
-                if (!_.isString(sendData)) {
-                    sendData = JSON.stringify(sendData);
-                }
-            } else if (isFormContentType(contentType)) {
-                if (!_.isString(sendData) && _.isObject(sendData)) {
-                    const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
-                        encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
-                    sendData = params.join('&');
-                }
-            }
+            const sendData = SimpleWebRequest.mapBody(this._options.sendData, contentType);
 
             this._xhr.send(sendData);
         } else {
@@ -337,6 +328,22 @@ export class SimpleWebRequest<T> {
         } else {
             return contentType;
         }
+    }
+
+    static mapBody(sendData: SendDataType, contentType: string): SendDataType {
+        let body = sendData;
+        if (isJsonContentType(contentType)) {
+            if (!_.isString(sendData)) {
+                body = JSON.stringify(sendData);
+            }
+        } else if (isFormContentType(contentType)) {
+            if (!_.isString(sendData) && _.isObject(sendData)) {
+                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
+                    encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
+                body = params.join('&');
+            }
+        }
+        return body;
     }
 
     private _getResponseInfo(statusCode: number): WebResponse<T> {
