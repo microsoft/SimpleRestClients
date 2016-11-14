@@ -125,12 +125,22 @@ export function DefaultErrorHandler(webRequest: SimpleWebRequest<any>, errResp: 
     return ErrorHandlingType.RetryCountedWithBackoff;
 }
 
+// Note: The ordering of this enum is used for detection logic
+const enum FeatureSupportStatus {
+    Unknown,
+    Detecting,
+    NotSupported,
+    Supported
+}
+
 export class SimpleWebRequest<T> {
     // List of pending requests, sorted from most important to least important (numerically descending)
     private static requestQueue: SimpleWebRequest<any>[] = [];
 
     // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
     private static executingList: SimpleWebRequest<any>[] = [];
+
+    private static _onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
 
     private _xhr: XMLHttpRequest;
     private _requestTimeoutTimer: number;
@@ -258,14 +268,53 @@ export class SimpleWebRequest<T> {
         // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
         this._xhr.open(this._action, this._url, true);
 
-        this._xhr.onreadystatechange = (e) => {
-            if (this._xhr.readyState !== 4) {
-                // Wait for it to finish
-                return;
-            }
+        const onLoadSupported = SimpleWebRequest._onLoadErrorSupportStatus;
 
-            this._respond();
-        };
+        // Use onreadystatechange if we don't know about onload support or it onload is not supported
+        if (onLoadSupported !== FeatureSupportStatus.Supported) {
+            if (onLoadSupported === FeatureSupportStatus.Unknown) {
+                // Set global status to detecting, leave local state so we can set a timer on finish
+                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
+            }
+            this._xhr.onreadystatechange = (e) => {
+                // We've detected onload support, rely on that
+                if (SimpleWebRequest._onLoadErrorSupportStatus === FeatureSupportStatus.Supported) {
+                    return;
+                }
+
+                if (this._xhr.readyState !== 4) {
+                    // Wait for it to finish
+                    return;
+                }
+
+                // This is the first request completed (unknown status when fired, detecting now), use it for detection
+                if (onLoadSupported === FeatureSupportStatus.Unknown &&
+                        SimpleWebRequest._onLoadErrorSupportStatus === FeatureSupportStatus.Detecting) {
+                    // If onload hasn't fired within 10 seconds of completion, detect as not supported
+                    SimpleWebRequestOptions.setTimeout(() => {
+                        if (SimpleWebRequest._onLoadErrorSupportStatus !== FeatureSupportStatus.Supported) {
+                            SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.NotSupported;
+                        }
+                    }, 10000);
+                }
+
+                this._respond();
+            };
+        }
+
+        if (onLoadSupported !== FeatureSupportStatus.NotSupported) {
+            // onLoad and onError are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
+            this._xhr.onload = () => {
+                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                // Note: We might double-fire respond here, since we can get a callback from onreadystatechange
+                // Respond is resiliant to being called multiple times
+                this._respond();
+            }
+            this._xhr.onerror = () => {
+                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                this._respond();
+            }
+        }
 
         this._xhr.onabort = (e) => {
             // If the browser cancels us (page navigation or whatever), it sometimes calls both the readystatechange and this,
