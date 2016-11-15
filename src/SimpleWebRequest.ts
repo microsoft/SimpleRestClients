@@ -262,6 +262,10 @@ export class SimpleWebRequest<T> {
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
+                    // Check if support has been detected, nothing to do it that's the case
+                    if (SimpleWebRequest._timeoutSupportStatus === FeatureSupportStatus.Supported) {
+                        return;
+                    }
                     this._timedOut = true;
                     this._requestTimeoutTimer = null;
                     this.abort();
@@ -275,7 +279,7 @@ export class SimpleWebRequest<T> {
                 this._xhr.ontimeout = () => {
                     SimpleWebRequest._timeoutSupportStatus = FeatureSupportStatus.Supported;
                     this._timedOut = true;
-                    // Set aborted flag to match simple timer approach
+                    // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
                     this._respond();
                 }
@@ -479,6 +483,7 @@ export class SimpleWebRequest<T> {
             // Aborted web requests often double-finish due to odd browser behavior, but non-aborted requests shouldn't...
             // Unfortunately, this assertion fires frequently in the Safari browser, presumably due to a non-standard
             // XHR implementation, so we need to comment it out.
+            // This also might get hit during browser feature detection process
             //assert.ok(this._aborted || this._timedOut, 'Double-finished XMLHttpRequest');
             return;
         }
