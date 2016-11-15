@@ -1,4 +1,4 @@
-﻿/**
+/**
 * SimpleWebRequest.ts
 * Author: David de Regt
 * Copyright: Microsoft 2016
@@ -141,6 +141,7 @@ export class SimpleWebRequest<T> {
     private static executingList: SimpleWebRequest<any>[] = [];
 
     private static _onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
+    private static _timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
     private _xhr: XMLHttpRequest;
     private _requestTimeoutTimer: number;
@@ -257,11 +258,28 @@ export class SimpleWebRequest<T> {
         this._xhr = new XMLHttpRequest();
 
         if (this._options.timeout) {
-            this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
-                this._timedOut = true;
-                this._requestTimeoutTimer = null;
-                this.abort();
-            }, this._options.timeout);
+            const timeoutSupported = SimpleWebRequest._timeoutSupportStatus
+             // Use manual timer if we don't know about timeout support
+            if (timeoutSupported !== FeatureSupportStatus.Supported) {
+                this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
+                    this._timedOut = true;
+                    this._requestTimeoutTimer = null;
+                    this.abort();
+                }, this._options.timeout);
+            }
+
+            // This is our first completed request. Use it for feature detection
+            if (timeoutSupported === FeatureSupportStatus.Supported || timeoutSupported <= FeatureSupportStatus.Detecting) {
+                // timeout and ontimeout are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
+                this._xhr.timeout = this._options.timeout;
+                this._xhr.ontimeout = () => {
+                    SimpleWebRequest._timeoutSupportStatus = FeatureSupportStatus.Supported;
+                    this._timedOut = true;
+                    // Set aborted flag to match simple timer approach
+                    this._aborted = true;
+                    this._respond();
+                }
+            }
         }
 
         // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
@@ -306,8 +324,6 @@ export class SimpleWebRequest<T> {
             // onLoad and onError are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
             this._xhr.onload = () => {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
-                // Note: We might double-fire respond here, since we can get a callback from onreadystatechange
-                // Respond is resiliant to being called multiple times
                 this._respond();
             }
             this._xhr.onerror = () => {
