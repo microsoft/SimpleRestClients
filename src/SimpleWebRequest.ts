@@ -169,6 +169,11 @@ export class SimpleWebRequest<T> {
             this._retryTimer = null;
         }
 
+        if (this._requestTimeoutTimer) {
+            SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
+            this._requestTimeoutTimer = null;
+        }
+
         if (!this._deferred) {
             assert.ok(false, 'Haven\'t even fired start() yet -- can\'t abort');
             return;
@@ -262,10 +267,6 @@ export class SimpleWebRequest<T> {
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
-                    // Check if support has been detected, nothing to do it that's the case
-                    if (SimpleWebRequest._timeoutSupportStatus === FeatureSupportStatus.Supported) {
-                        return;
-                    }
                     this._timedOut = true;
                     this._requestTimeoutTimer = null;
                     this.abort();
@@ -278,6 +279,10 @@ export class SimpleWebRequest<T> {
                 this._xhr.timeout = this._options.timeout;
                 this._xhr.ontimeout = () => {
                     SimpleWebRequest._timeoutSupportStatus = FeatureSupportStatus.Supported;
+                    if (timeoutSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                        return;
+                    }
                     this._timedOut = true;
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
@@ -290,27 +295,22 @@ export class SimpleWebRequest<T> {
         // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
         this._xhr.open(this._action, this._url, true);
 
-        const onLoadSupported = SimpleWebRequest._onLoadErrorSupportStatus;
+        const onLoadErrorSupported = SimpleWebRequest._onLoadErrorSupportStatus;
 
         // Use onreadystatechange if we don't know about onload support or it onload is not supported
-        if (onLoadSupported !== FeatureSupportStatus.Supported) {
-            if (onLoadSupported === FeatureSupportStatus.Unknown) {
+        if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+            if (onLoadErrorSupported === FeatureSupportStatus.Unknown) {
                 // Set global status to detecting, leave local state so we can set a timer on finish
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
             }
             this._xhr.onreadystatechange = (e) => {
-                // We've detected onload support, rely on that
-                if (SimpleWebRequest._onLoadErrorSupportStatus === FeatureSupportStatus.Supported) {
-                    return;
-                }
-
                 if (this._xhr.readyState !== 4) {
                     // Wait for it to finish
                     return;
                 }
 
                 // This is the first request completed (unknown status when fired, detecting now), use it for detection
-                if (onLoadSupported === FeatureSupportStatus.Unknown &&
+                if (onLoadErrorSupported === FeatureSupportStatus.Unknown &&
                         SimpleWebRequest._onLoadErrorSupportStatus === FeatureSupportStatus.Detecting) {
                     // If onload hasn't fired within 10 seconds of completion, detect as not supported
                     SimpleWebRequestOptions.setTimeout(() => {
@@ -324,14 +324,22 @@ export class SimpleWebRequest<T> {
             };
         }
 
-        if (onLoadSupported !== FeatureSupportStatus.NotSupported) {
+        if (onLoadErrorSupported !== FeatureSupportStatus.NotSupported) {
             // onLoad and onError are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
             this._xhr.onload = () => {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                    return;
+                }
                 this._respond();
             }
             this._xhr.onerror = () => {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                    return;
+                }
                 this._respond();
             }
         }
