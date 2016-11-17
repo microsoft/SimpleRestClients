@@ -84,7 +84,7 @@ export class GenericRestClient {
         });
     }
 
-    protected _getHeaders(): _.Dictionary<string> {
+    protected _getHeaders(): { [header: string]: string } {
         // Virtual function -- No-op by default
         return {};
     }

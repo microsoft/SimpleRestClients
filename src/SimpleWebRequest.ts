@@ -17,7 +17,7 @@ export interface WebResponse<T> {
     method: string;
     statusCode: number;
     statusText: string;
-    headers: _.Dictionary<string>;
+    headers: { [header: string]: string };
     body: T;
 }
 
@@ -79,7 +79,7 @@ export interface WebRequestOptions {
     acceptType?: string;
     contentType?: string;
     sendData?: SendDataType;
-    headers?: _.Dictionary<string>;
+    headers?: { [header: string]: string };
 
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
 
@@ -215,7 +215,7 @@ export class SimpleWebRequest<T> {
         this._url = newUrl;
     }
 
-    getRequestHeaders(): _.Dictionary<string> {
+    getRequestHeaders(): { [header: string]: string } {
         return _.clone(this._options.headers);
     }
 
