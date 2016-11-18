@@ -262,6 +262,10 @@ export class SimpleWebRequest<T> {
     private _fire(): void {
         this._xhr = new XMLHttpRequest();
 
+        // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
+        // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
+        this._xhr.open(this._action, this._url, true);
+
         if (this._options.timeout) {
             const timeoutSupported = SimpleWebRequest._timeoutSupportStatus
              // Use manual timer if we don't know about timeout support
@@ -291,9 +295,6 @@ export class SimpleWebRequest<T> {
             }
         }
 
-        // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
-        // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
-        this._xhr.open(this._action, this._url, true);
 
         const onLoadErrorSupported = SimpleWebRequest._onLoadErrorSupportStatus;
 
