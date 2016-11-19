@@ -544,8 +544,10 @@ export class SimpleWebRequest<T> {
                 // Policy-adaptable failure
                 const handleResponse = (this._options.customErrorHandler || DefaultErrorHandler)(this, errResp);
 
-                const retry = this._options.retries > 0 || handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
-                    handleResponse === ErrorHandlingType.RetryUncountedWithBackoff;
+                const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
+                    this._options.retries > 0 ||
+                    handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
+                    handleResponse === ErrorHandlingType.RetryUncountedWithBackoff);
 
                 if (retry) {
                     if (handleResponse === ErrorHandlingType.RetryCountedWithBackoff) {
