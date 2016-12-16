@@ -45,7 +45,10 @@ export const enum ErrorHandlingType {
     RetryUncountedWithBackoff,
 
     // Use standard retry policy (count it as a failure, exponential backoff as policy dictates)
-    RetryCountedWithBackoff
+    RetryCountedWithBackoff,
+
+    // Return this if you need to satisfy some condition before this request will retry (then call .resumeRetrying()).
+    PauseUntilResumed
 }
 
 export interface NativeBlobFileData {
@@ -150,6 +153,7 @@ export class SimpleWebRequest<T> {
 
     private _aborted = false;
     private _timedOut = false;
+    private _paused = false;
 
     // De-dupe result handling for two reasons so far:
     // 1. Various platforms have bugs where they double-resolves aborted xmlhttprequests
@@ -166,12 +170,12 @@ export class SimpleWebRequest<T> {
     abort(): void {
         if (this._retryTimer) {
             SimpleWebRequestOptions.clearTimeout(this._retryTimer);
-            this._retryTimer = null;
+            this._retryTimer = undefined;
         }
 
         if (this._requestTimeoutTimer) {
             SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
-            this._requestTimeoutTimer = null;
+            this._requestTimeoutTimer = undefined;
         }
 
         if (!this._deferred) {
@@ -215,6 +219,18 @@ export class SimpleWebRequest<T> {
         this._url = newUrl;
     }
 
+    setHeader(key: string, val: string): void {
+        if (!this._options.headers) {
+            this._options.headers = {};
+        }
+
+        if (val) {
+            this._options.headers[key] = val;
+        } else {
+            delete this._options.headers[key];
+        }
+    }
+
     getRequestHeaders(): { [header: string]: string } {
         return _.clone(this._options.headers);
     }
@@ -233,6 +249,16 @@ export class SimpleWebRequest<T> {
 
         // Remove and re-queue
         _.remove(SimpleWebRequest.requestQueue, item => item === this);
+        this._enqueue();
+    }
+
+    resumeRetrying(): void {
+        if (!this._paused) {
+            assert.ok(false, 'resumeRetrying() called but not paused!');
+            return;
+        }
+
+        this._paused = false;
         this._enqueue();
     }
 
@@ -272,7 +298,7 @@ export class SimpleWebRequest<T> {
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
                     this._timedOut = true;
-                    this._requestTimeoutTimer = null;
+                    this._requestTimeoutTimer = undefined;
                     this.abort();
                 }, this._options.timeout);
             }
@@ -378,7 +404,7 @@ export class SimpleWebRequest<T> {
             assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
 
             if (!val) {
-                assert.ok(false, 'Null header being sent for key: ' + key + '. This will crash android if let through.');
+                assert.ok(false, 'Empty header being sent for key: ' + key + '. This will crash Android RN if let through.');
                 return;
             }
 
@@ -394,7 +420,7 @@ export class SimpleWebRequest<T> {
 
             this._xhr.send(sendData);
         } else {
-            this._xhr.send(null);
+            this._xhr.send();
         }
     }
 
@@ -432,7 +458,7 @@ export class SimpleWebRequest<T> {
                 statusCode: 0,
                 statusText: 'Browser Error - Possible CORS or Connectivity Issue',
                 headers: {},
-                body: null
+                body: undefined
             };
         }
 
@@ -506,12 +532,12 @@ export class SimpleWebRequest<T> {
 
         if (this._requestTimeoutTimer) {
             SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
-            this._requestTimeoutTimer = null;
+            this._requestTimeoutTimer = undefined;
         }
         this._finishHandled = true;
 
         let statusCode = 0;
-        let statusText: string = null;
+        let statusText: string;
         if (this._xhr) {
             try {
                 statusCode = this._xhr.status;
@@ -546,6 +572,7 @@ export class SimpleWebRequest<T> {
 
                 const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
                     this._options.retries > 0 ||
+                    handleResponse === ErrorHandlingType.PauseUntilResumed ||
                     handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
                     handleResponse === ErrorHandlingType.RetryUncountedWithBackoff);
 
@@ -559,10 +586,16 @@ export class SimpleWebRequest<T> {
                     // Clear the XHR since we technically just haven't started again yet...
                     this._xhr = undefined;
 
-                    this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
-                        this._retryTimer = null;
+                    if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
+                        this._paused = true;
+                    } else if (handleResponse === ErrorHandlingType.RetryUncountedImmediately) {
                         this._enqueue();
-                    }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
+                    } else {
+                        this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
+                            this._retryTimer = undefined;
+                            this._enqueue();
+                        }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
+                    }
                 } else {
                     // No more retries -- fail.
                     this._deferred.reject(errResp);
