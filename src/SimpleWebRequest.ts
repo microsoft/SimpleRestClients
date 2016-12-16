@@ -242,6 +242,10 @@ export class SimpleWebRequest<T> {
 
         this._options.priority = newPriority;
 
+        if (this._paused) {
+            return;
+        }
+
         if (this._xhr) {
             // Already fired -- wait for it to retry for the new priority to matter
             return;
