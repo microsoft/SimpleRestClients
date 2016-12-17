@@ -168,6 +168,13 @@ export class SimpleWebRequest<T> {
     }
 
     abort(): void {
+        if (this._aborted) {
+            assert.ok(false, 'Already aborted request');
+            return;
+        }
+
+        this._aborted = true;
+
         if (this._retryTimer) {
             SimpleWebRequestOptions.clearTimeout(this._retryTimer);
             this._retryTimer = undefined;
@@ -183,18 +190,12 @@ export class SimpleWebRequest<T> {
             return;
         }
 
-        if (!this._aborted) {
-            this._aborted = true;
-
-            if (this._xhr) {
-                // Abort the in-flight request
-                this._xhr.abort();
-            } else {
-                // Not in flight
-                this._respond();
-            }
+        if (this._xhr) {
+            // Abort the in-flight request
+            this._xhr.abort();
         } else {
-            assert.ok(false, 'Already aborted request');
+            // Not in flight
+            this._respond();
         }
     }
 
@@ -300,9 +301,11 @@ export class SimpleWebRequest<T> {
             const timeoutSupported = SimpleWebRequest._timeoutSupportStatus
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
+                assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
-                    this._timedOut = true;
                     this._requestTimeoutTimer = undefined;
+
+                    this._timedOut = true;
                     this.abort();
                 }, this._options.timeout);
             }
@@ -527,6 +530,8 @@ export class SimpleWebRequest<T> {
             return;
         }
 
+        this._finishHandled = true;
+
         // Pull it out of whichever queue it's sitting in
         if (this._xhr) {
             _.pull(SimpleWebRequest.executingList, this);
@@ -534,11 +539,15 @@ export class SimpleWebRequest<T> {
             _.pull(SimpleWebRequest.requestQueue, this);
         }
 
+        if (this._retryTimer) {
+            SimpleWebRequestOptions.clearTimeout(this._retryTimer);
+            this._retryTimer = undefined;
+        }
+
         if (this._requestTimeoutTimer) {
             SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
             this._requestTimeoutTimer = undefined;
         }
-        this._finishHandled = true;
 
         let statusCode = 0;
         let statusText: string;
@@ -583,6 +592,11 @@ export class SimpleWebRequest<T> {
                 if (retry) {
                     if (handleResponse === ErrorHandlingType.RetryCountedWithBackoff) {
                         this._options.retries--;
+                    }
+
+                    if (this._requestTimeoutTimer) {
+                        SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
+                        this._requestTimeoutTimer = undefined;
                     }
 
                     this._finishHandled = false;
