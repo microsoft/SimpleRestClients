@@ -121,17 +121,17 @@ export class GenericRestClient {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
-    performApiPut(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<void> {
-        return this.performApiPutDetailed(apiPath, objToPut, options).then(_.noop);
+    performApiPut<T>(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+        return this.performApiPutDetailed<T>(apiPath, objToPut, options).then(resp => resp.body);
     }
-    performApiPutDetailed(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<void>> {
-        return this._performApiCall<void>(apiPath, 'PUT', objToPut, options);
+    performApiPutDetailed<T>(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+        return this._performApiCall<T>(apiPath, 'PUT', objToPut, options);
     }
 
-    performApiDelete(apiPath: string, objToDelete: any = null, options: ApiCallOptions = null): SyncTasks.Promise<void> {
-        return this.performApiDeleteDetailed(apiPath, objToDelete, options).then(_.noop);
+    performApiDelete<T>(apiPath: string, objToDelete: any = null, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+        return this.performApiDeleteDetailed<T>(apiPath, objToDelete, options).then(resp => resp.body);
     }
-    performApiDeleteDetailed(apiPath: string, objToDelete: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<void>> {
-        return this._performApiCall<void>(apiPath, 'DELETE', objToDelete, options);
+    performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+        return this._performApiCall<T>(apiPath, 'DELETE', objToDelete, options);
     }
 }
