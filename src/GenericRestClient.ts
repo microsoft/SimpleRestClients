@@ -64,7 +64,7 @@ export class GenericRestClient {
     private _performApiCallInternal<T>(apiPath: string, action: HttpAction, options: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
         if (!options.headers) {
-            options.headers = this._getHeaders();
+            options.headers = this._getHeaders(options);
         }
 
         if (options.eTag) {
@@ -84,7 +84,7 @@ export class GenericRestClient {
         });
     }
 
-    protected _getHeaders(): { [header: string]: string } {
+    protected _getHeaders(options: ApiCallOptions): { [header: string]: string } {
         // Virtual function -- No-op by default
         return {};
     }
