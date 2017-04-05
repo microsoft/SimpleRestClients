@@ -169,7 +169,7 @@ export class SimpleWebRequest<T> {
 
     abort(): void {
         if (this._aborted) {
-            assert.ok(false, 'Already aborted request');
+            assert.ok(false, 'Already aborted ' + this._action + ' request to ' + this._url);
             return;
         }
 
