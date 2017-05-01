@@ -193,10 +193,8 @@ export class SimpleWebRequest<T> {
         if (this._xhr) {
             // Abort the in-flight request
             this._xhr.abort();
-        } else {
-            // Not in flight
-            this._respond();
         }
+        this._respond();
     }
 
     start(): SyncTasks.Promise<WebResponse<T>> {
