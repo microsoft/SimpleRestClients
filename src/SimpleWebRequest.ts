@@ -98,6 +98,10 @@ function isFormContentType(ct: string) {
     return ct && ct.indexOf('application/x-www-form-urlencoded') === 0;
 }
 
+function isFormDataContentType(ct: string) {
+    return ct && ct.indexOf('multipart/form-data') === 0;
+}
+
 export let DefaultOptions: WebRequestOptions = {
     priority: WebRequestPriority.Normal
 };
@@ -457,6 +461,13 @@ export class SimpleWebRequest<T> {
                 const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
+            }
+        } else if (isFormDataContentType(contentType)) {
+            if (_.isObject(sendData)) {
+                body = new FormData();
+                _.forEach(sendData as _.Dictionary<any>, (val, key) => (body as FormData).append(key, val))
+            } else {
+                assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
             }
         }
 
