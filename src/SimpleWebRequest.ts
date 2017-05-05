@@ -291,12 +291,20 @@ export class SimpleWebRequest<T> {
     private _fire(): void {
         this._xhr = new XMLHttpRequest();
 
-        // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
-        // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
-        this._xhr.open(this._action, this._url, true);
+        // xhr.open() can throw an exception for a CSP violation.
+        const openError = _.attempt(() => {
+            // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
+            // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
+            this._xhr.open(this._action, this._url, true);
+        });
+
+        if (openError) {
+            this._respond(openError.toString());
+            return;
+        }
 
         if (this._options.timeout) {
-            const timeoutSupported = SimpleWebRequest._timeoutSupportStatus
+            const timeoutSupported = SimpleWebRequest._timeoutSupportStatus;
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
                 assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
@@ -518,7 +526,7 @@ export class SimpleWebRequest<T> {
         };
     }
 
-    private _respond() {
+    private _respond(errorStatusText?: string) {
         if (this._finishHandled) {
             // Aborted web requests often double-finish due to odd browser behavior, but non-aborted requests shouldn't...
             // Unfortunately, this assertion fires frequently in the Safari browser, presumably due to a non-standard
@@ -552,7 +560,7 @@ export class SimpleWebRequest<T> {
         if (this._xhr) {
             try {
                 statusCode = this._xhr.status;
-                statusText = this._xhr.statusText;
+                statusText = this._xhr.statusText || errorStatusText;
             } catch (e) {
                 // Some browsers error when you try to read status off aborted requests
             }
