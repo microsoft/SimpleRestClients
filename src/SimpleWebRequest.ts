@@ -7,7 +7,16 @@
 */
 
 import assert = require('assert');
-import _ = require('lodash');
+import clone  = require('lodash.clone');
+import defaults  = require('lodash.defaults');
+import isString  = require('lodash.isstring');
+import remove  = require('lodash.remove');
+import findIndex  = require('lodash.findlastindex');
+import attempt  = require('lodash.attempt');
+import foreach  = require('lodash.foreach');
+import map  = require('lodash.map');
+import isObject  = require('lodash.isobject');
+import pull  = require('lodash.pull');
 import SyncTasks = require('synctasks');
 
 import { ExponentialTime } from './ExponentialTime';
@@ -164,7 +173,7 @@ export class SimpleWebRequest<T> {
     private _retryExponentialTime = new ExponentialTime(1000, 300000);
 
     constructor(private _action: string, private _url: string, options: WebRequestOptions) {
-        this._options = _.defaults(options, DefaultOptions);
+        this._options = defaults(options, DefaultOptions);
     }
 
     abort(): void {
@@ -231,7 +240,7 @@ export class SimpleWebRequest<T> {
     }
 
     getRequestHeaders(): { [header: string]: string } {
-        return _.clone(this._options.headers);
+        return clone(this._options.headers);
     }
 
     setPriority(newPriority: WebRequestPriority): void {
@@ -251,7 +260,7 @@ export class SimpleWebRequest<T> {
         }
 
         // Remove and re-queue
-        _.remove(SimpleWebRequest.requestQueue, item => item === this);
+        remove(SimpleWebRequest.requestQueue, item => item === this);
         this._enqueue();
     }
 
@@ -267,7 +276,7 @@ export class SimpleWebRequest<T> {
 
     private _enqueue(): void {
         // Throw it on the queue
-        const index = _.findIndex(SimpleWebRequest.requestQueue, request => request._options.priority < this._options.priority);
+        const index = findIndex(SimpleWebRequest.requestQueue, request => request._options.priority < this._options.priority);
         if (index > -1) {
             SimpleWebRequest.requestQueue.splice(index, 0, this);
         } else {
@@ -292,7 +301,7 @@ export class SimpleWebRequest<T> {
         this._xhr = new XMLHttpRequest();
 
         // xhr.open() can throw an exception for a CSP violation.
-        const openError = _.attempt(() => {
+        const openError = attempt(() => {
             // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
             // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
             this._xhr.open(this._action, this._url, true);
@@ -403,8 +412,8 @@ export class SimpleWebRequest<T> {
         this._xhr.withCredentials = this._options.withCredentials;
 
         // check/process headers
-        let headersCheck: _.Dictionary<boolean> = {};
-        _.each(this._options.headers, (val, key) => {
+        let headersCheck: Dictionary<boolean> = {};
+        foreach(this._options.headers, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
                 assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
@@ -450,16 +459,17 @@ export class SimpleWebRequest<T> {
     static mapBody(sendData: SendDataType, contentType: string): SendDataType {
         let body = sendData;
         if (isJsonContentType(contentType)) {
-            if (!_.isString(sendData)) {
+            if (!isString(sendData)) {
                 body = JSON.stringify(sendData);
             }
         } else if (isFormContentType(contentType)) {
-            if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
+            if (!isString(sendData) && isObject(sendData)) {
+                const params = map(sendData as Dictionary<any>, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
             }
         }
+
         return body;
     }
 
@@ -502,7 +512,7 @@ export class SimpleWebRequest<T> {
 
         let body = this._xhr.response;
         if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
-            if (!body || !_.isObject(body)) {
+            if (!body || !isObject(body)) {
                 // Looks like responseType didn't parse it for us -- try shimming it in from responseText
                 try {
                     // Even accessing responseText may throw
@@ -540,9 +550,9 @@ export class SimpleWebRequest<T> {
 
         // Pull it out of whichever queue it's sitting in
         if (this._xhr) {
-            _.pull(SimpleWebRequest.executingList, this);
+            pull(SimpleWebRequest.executingList, this);
         } else {
-            _.pull(SimpleWebRequest.requestQueue, this);
+            pull(SimpleWebRequest.requestQueue, this);
         }
 
         if (this._retryTimer) {
