@@ -7,9 +7,8 @@
 */
 
 import assert = require('assert');
-import defaults = require('lodash.defaults');
-import isString = require('lodash.isstring');
 import SyncTasks = require('synctasks');
+import _ = require('lodashMin');
 
 import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
 
@@ -49,7 +48,7 @@ export class GenericRestClient {
 
     protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
-        let options = defaults<ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+        let options = _.defaults<ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
 
         if (objToPost) {
             options.sendData = objToPost;
@@ -73,7 +72,7 @@ export class GenericRestClient {
         }
 
         if (!options.contentType) {
-            options.contentType = isString(options.sendData) ? 'form' : 'json';
+            options.contentType = _.isString(options.sendData) ? 'form' : 'json';
         }
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;

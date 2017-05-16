@@ -13,7 +13,7 @@
     "lodash.defaults": "3.x || 4.x",
     "lodash.isstring": "3.x || 4.x",
     "lodash.remove": "3.x || 4.x",
-    "lodash.findlastindex": "3.x || 4.x",
+    "lodash.findindex": "3.x || 4.x",
     "lodash.attempt": "3.x || 4.x",
     "lodash.foreach": "3.x || 4.x",
     "lodash.map": "3.x || 4.x",
