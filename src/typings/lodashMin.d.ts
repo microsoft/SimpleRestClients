@@ -311,61 +311,61 @@ interface LodashMin {
 }
 
 // exports
-declare module "lodashMin.clone" {
+declare module "lodash.clone" {
     const _: LodashMin;
     const clone: typeof _.clone;
     export = clone;
 }
 
-declare module "lodashMin.defaults" {
+declare module "lodash.defaults" {
     const _: LodashMin;
     const defaults: typeof _.defaults;
     export = defaults;
 }
 
-declare module "lodashMin.isString" {
+declare module "lodash.isString" {
     const _: LodashMin;
     const isString: typeof _.isString;
     export = isString;
 }
 
-declare module "lodashMin.remove" {
+declare module "lodash.remove" {
     const _: LodashMin;
     const remove: typeof _.remove;
     export = remove;
 }
 
-declare module "lodashMin.findIndex" {
+declare module "lodash.findIndex" {
     const _: LodashMin;
     const findIndex: typeof _.findIndex;
     export = findIndex;
 }
 
-declare module "lodashMin.attempt" {
+declare module "lodash.attempt" {
     const _: LodashMin;
     const attempt: typeof _.attempt;
     export = attempt;
 }
 
-declare module "lodashMin.forEach" {
+declare module "lodash.forEach" {
     const _: LodashMin;
     const forEach: typeof _.forEach;
     export = forEach;
 }
 
-declare module "lodashMin.map" {
+declare module "lodash.map" {
     const _: LodashMin;
     const map: typeof _.map;
     export = map;
 }
 
-declare module "lodashMin.isObject" {
+declare module "lodash.isObject" {
     const _: LodashMin;
     const isObject: typeof _.isObject;
     export = isObject;
 }
 
-declare module "lodashMin.pull" {
+declare module "lodash.pull" {
     const _: LodashMin;
     const pull: typeof _.pull;
     export = pull;

@@ -7,16 +7,16 @@
 * Imports a subset of lodash library needed for SimpleRestClient
 */
 
-import clone = require('lodashMin.clone');
-import isString = require('lodashMin.isString');
-import defaults = require('lodashMin.defaults');
-import remove = require('lodashMin.remove');
-import findIndex = require('lodashMin.findIndex');
-import attempt = require('lodashMin.attempt');
-import forEach = require('lodashMin.forEach');
-import map = require('lodashMin.map');
-import isObject = require('lodashMin.isObject');
-import pull = require('lodashMin.pull');
+import clone = require('lodash.clone');
+import isString = require('lodash.isString');
+import defaults = require('lodash.defaults');
+import remove = require('lodash.remove');
+import findIndex = require('lodash.findIndex');
+import attempt = require('lodash.attempt');
+import forEach = require('lodash.forEach');
+import map = require('lodash.map');
+import isObject = require('lodash.isObject');
+import pull = require('lodash.pull');
 
 export interface Dictionary<T> {
     [index: string]: T;
