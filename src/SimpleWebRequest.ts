@@ -251,7 +251,7 @@ export class SimpleWebRequest<T> {
         }
 
         // Remove and re-queue
-        _.remove(SimpleWebRequest.requestQueue, (item: any) => item === this);
+        _.remove(SimpleWebRequest.requestQueue, (item) => item === this);
         this._enqueue();
     }
 
@@ -267,7 +267,7 @@ export class SimpleWebRequest<T> {
 
     private _enqueue(): void {
         // Throw it on the queue
-        const index = _.findIndex(SimpleWebRequest.requestQueue, (request: any) => request._options.priority < this._options.priority);
+        const index = _.findIndex(SimpleWebRequest.requestQueue, (request) => request._options.priority < this._options.priority);
         if (index > -1) {
             SimpleWebRequest.requestQueue.splice(index, 0, this);
         } else {
@@ -403,7 +403,7 @@ export class SimpleWebRequest<T> {
 
         // check/process headers
         let headersCheck: _.Dictionary<boolean> = {};
-        _.forEach(this._options.headers, (val: any, key: string ) => {
+        _.forEach(this._options.headers, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
                 assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');

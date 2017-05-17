@@ -48,7 +48,7 @@ export class GenericRestClient {
 
     protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
-        let options = _.defaults<ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+        let options = _.defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
 
         if (objToPost) {
             options.sendData = objToPost;
