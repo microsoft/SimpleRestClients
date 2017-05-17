@@ -7,14 +7,10 @@
 */
 
 import assert = require('assert');
-import _ = require('lodashMin');
 import SyncTasks = require('synctasks');
 
+import * as _ from './lodashMin';
 import { ExponentialTime } from './ExponentialTime';
-
-interface Dictionary<T> {
-    [index: string]: T;
-}
 
 export interface WebResponse<T> {
     url: string;
@@ -407,7 +403,7 @@ export class SimpleWebRequest<T> {
         this._xhr.withCredentials = this._options.withCredentials;
 
         // check/process headers
-        let headersCheck: Dictionary<boolean> = {};
+        let headersCheck: _.Dictionary<boolean> = {};
         _.forEach(this._options.headers, (val: any, key: string ) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
@@ -459,7 +455,7 @@ export class SimpleWebRequest<T> {
             }
         } else if (isFormContentType(contentType)) {
             if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as Dictionary<any>, (val: any , key: string) =>
+                const params = _.map(sendData as _.Dictionary<any>, (val: any , key: string) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
             }
