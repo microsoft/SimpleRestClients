@@ -7,8 +7,8 @@
 */
 
 import assert = require('assert');
-import _ = require('lodash');
 import SyncTasks = require('synctasks');
+import _ = require('./lodashMini');
 
 import { ExponentialTime } from './ExponentialTime';
 
@@ -330,10 +330,9 @@ export class SimpleWebRequest<T> {
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
                     this._respond();
-                }
+                };
             }
         }
-
 
         const onLoadErrorSupported = SimpleWebRequest._onLoadErrorSupportStatus;
 
@@ -373,7 +372,7 @@ export class SimpleWebRequest<T> {
                     return;
                 }
                 this._respond();
-            }
+            };
             this._xhr.onerror = () => {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
                 if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
@@ -381,7 +380,7 @@ export class SimpleWebRequest<T> {
                     return;
                 }
                 this._respond();
-            }
+            };
         }
 
         this._xhr.onabort = (e) => {
@@ -404,7 +403,7 @@ export class SimpleWebRequest<T> {
 
         // check/process headers
         let headersCheck: _.Dictionary<boolean> = {};
-        _.each(this._options.headers, (val, key) => {
+        _.forEach(this._options.headers, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
                 assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
@@ -460,6 +459,7 @@ export class SimpleWebRequest<T> {
                 body = params.join('&');
             }
         }
+
         return body;
     }
 

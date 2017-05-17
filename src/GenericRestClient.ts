@@ -7,8 +7,8 @@
 */
 
 import assert = require('assert');
-import _ = require('lodash');
 import SyncTasks = require('synctasks');
+import _ = require('./lodashMini');
 
 import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
 
@@ -48,7 +48,7 @@ export class GenericRestClient {
 
     protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
-        let options = _.defaults<ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+        let options = _.defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
 
         if (objToPost) {
             options.sendData = objToPost;
