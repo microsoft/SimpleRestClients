@@ -5,24 +5,18 @@
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
     "prepublish": "tsc",
-    "build": "tsc"
+    "build": "npm run tslint && tsc",
+    "tslint": "tslint --project tsconfig.json -r tslint.json -r./node_modules/tslint-microsoft-contrib --fix || true"
   },
   "dependencies": {
     "assert": "^1.4.1",
-    "lodash.clone": "3.x || 4.x",
-    "lodash.defaults": "3.x || 4.x",
-    "lodash.isstring": "3.x || 4.x",
-    "lodash.remove": "3.x || 4.x",
-    "lodash.findindex": "3.x || 4.x",
-    "lodash.attempt": "3.x || 4.x",
-    "lodash.foreach": "3.x || 4.x",
-    "lodash.map": "3.x || 4.x",
-    "lodash.isobject": "3.x || 4.x",
-    "lodash.pull": "3.x || 4.x",
+    "lodash": "3.x || 4.x",
     "synctasks": "^0.2.10"
   },
   "devDependencies": {
-    "typescript": "^2.2.0"
+    "typescript": "^2.2.0",
+    "tslint": "^5.0.0",
+    "tslint-microsoft-contrib": "^4.0.1"
   },
   "repository": {
     "type": "git",

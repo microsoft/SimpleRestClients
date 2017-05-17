@@ -28,7 +28,7 @@ interface ObjectIterator<T, TResult> {
     (element: T, key?: string, collection?: any): TResult;
 }
 
-interface LodashMin {
+interface LodashMini {
     //_.isString
     /**
      * Checks if value is classified as a String primitive or object.
@@ -311,62 +311,62 @@ interface LodashMin {
 }
 
 // exports
-declare module "lodash.clone" {
-    const _: LodashMin;
+declare module "lodash/clone" {
+    const _: LodashMini;
     const clone: typeof _.clone;
     export = clone;
 }
 
-declare module "lodash.defaults" {
-    const _: LodashMin;
+declare module "lodash/defaults" {
+    const _: LodashMini;
     const defaults: typeof _.defaults;
     export = defaults;
 }
 
-declare module "lodash.isString" {
-    const _: LodashMin;
+declare module "lodash/isString" {
+    const _: LodashMini;
     const isString: typeof _.isString;
     export = isString;
 }
 
-declare module "lodash.remove" {
-    const _: LodashMin;
+declare module "lodash/remove" {
+    const _: LodashMini;
     const remove: typeof _.remove;
     export = remove;
 }
 
-declare module "lodash.findIndex" {
-    const _: LodashMin;
+declare module "lodash/findIndex" {
+    const _: LodashMini;
     const findIndex: typeof _.findIndex;
     export = findIndex;
 }
 
-declare module "lodash.attempt" {
-    const _: LodashMin;
+declare module "lodash/attempt" {
+    const _: LodashMini;
     const attempt: typeof _.attempt;
     export = attempt;
 }
 
-declare module "lodash.forEach" {
-    const _: LodashMin;
+declare module "lodash/forEach" {
+    const _: LodashMini;
     const forEach: typeof _.forEach;
     export = forEach;
 }
 
-declare module "lodash.map" {
-    const _: LodashMin;
+declare module "lodash/map" {
+    const _: LodashMini;
     const map: typeof _.map;
     export = map;
 }
 
-declare module "lodash.isObject" {
-    const _: LodashMin;
+declare module "lodash/isObject" {
+    const _: LodashMini;
     const isObject: typeof _.isObject;
     export = isObject;
 }
 
-declare module "lodash.pull" {
-    const _: LodashMin;
+declare module "lodash/pull" {
+    const _: LodashMini;
     const pull: typeof _.pull;
     export = pull;
 }

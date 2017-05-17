@@ -8,8 +8,8 @@
 
 import assert = require('assert');
 import SyncTasks = require('synctasks');
+import _ = require('./lodashMini');
 
-import * as _ from './lodashMin';
 import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
 
 export type HttpAction = 'POST'|'GET'|'PUT'|'DELETE'|'PATCH';

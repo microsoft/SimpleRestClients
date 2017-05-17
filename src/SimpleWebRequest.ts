@@ -8,8 +8,8 @@
 
 import assert = require('assert');
 import SyncTasks = require('synctasks');
+import _ = require('./lodashMini');
 
-import * as _ from './lodashMin';
 import { ExponentialTime } from './ExponentialTime';
 
 export interface WebResponse<T> {
@@ -330,10 +330,9 @@ export class SimpleWebRequest<T> {
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
                     this._respond();
-                }
+                };
             }
         }
-
 
         const onLoadErrorSupported = SimpleWebRequest._onLoadErrorSupportStatus;
 
@@ -373,7 +372,7 @@ export class SimpleWebRequest<T> {
                     return;
                 }
                 this._respond();
-            }
+            };
             this._xhr.onerror = () => {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
                 if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
@@ -381,7 +380,7 @@ export class SimpleWebRequest<T> {
                     return;
                 }
                 this._respond();
-            }
+            };
         }
 
         this._xhr.onabort = (e) => {
