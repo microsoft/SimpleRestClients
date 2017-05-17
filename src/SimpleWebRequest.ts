@@ -251,7 +251,7 @@ export class SimpleWebRequest<T> {
         }
 
         // Remove and re-queue
-        _.remove(SimpleWebRequest.requestQueue, (item) => item === this);
+        _.remove(SimpleWebRequest.requestQueue, item => item === this);
         this._enqueue();
     }
 
@@ -267,7 +267,7 @@ export class SimpleWebRequest<T> {
 
     private _enqueue(): void {
         // Throw it on the queue
-        const index = _.findIndex(SimpleWebRequest.requestQueue, (request) => request._options.priority < this._options.priority);
+        const index = _.findIndex(SimpleWebRequest.requestQueue, request => request._options.priority < this._options.priority);
         if (index > -1) {
             SimpleWebRequest.requestQueue.splice(index, 0, this);
         } else {
@@ -454,7 +454,7 @@ export class SimpleWebRequest<T> {
             }
         } else if (isFormContentType(contentType)) {
             if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as _.Dictionary<any>, (val: any , key: string) =>
+                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
             }
