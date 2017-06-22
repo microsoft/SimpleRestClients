@@ -415,8 +415,8 @@ export class SimpleWebRequest<T> {
             }
             assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
 
-            if (!val) {
-                assert.ok(false, 'Empty header being sent for key: ' + key + '. This will crash Android RN if let through.');
+            if (val === undefined || val === null) {
+                console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
                 return;
             }
 
