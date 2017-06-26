@@ -464,8 +464,11 @@ export class SimpleWebRequest<T> {
             }
         } else if (isFormDataContentType(contentType)) {
             if (_.isObject(sendData)) {
+                // Note: This only works for IE10 and above.
                 body = new FormData();
-                _.forEach(sendData as _.Dictionary<any>, (val, key) => (body as FormData).append(key, val))
+                _.forEach(sendData as _.Dictionary<any>, (val, key) => {
+                    (body as FormData).append(key, val);
+                });
             } else {
                 assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
             }
