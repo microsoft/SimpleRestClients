@@ -531,7 +531,7 @@ export class SimpleWebRequest<T> {
         }
 
         return {
-            url: this._url,
+            url: this._xhr.responseURL || this._url,
             method: this._action,
             statusCode: statusCode,
             statusText: this._xhr.statusText,
