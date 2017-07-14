@@ -101,21 +101,21 @@ export class GenericRestClient {
     }
 
     performApiGet<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<T> {
-        return this.performApiGetDetailed(apiPath, options).then(resp => resp.body);
+        return this.performApiGetDetailed<T>(apiPath, options).then(resp => resp.body);
     }
     performApiGetDetailed<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'GET', null, options);
     }
 
     performApiPost<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
-        return this.performApiPostDetailed(apiPath, objToPost, options).then(resp => resp.body);
+        return this.performApiPostDetailed<T>(apiPath, objToPost, options).then(resp => resp.body);
     }
     performApiPostDetailed<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
     performApiPatch<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
-        return this.performApiPatchDetailed(apiPath, objToPatch, options).then(resp => resp.body);
+        return this.performApiPatchDetailed<T>(apiPath, objToPatch, options).then(resp => resp.body);
     }
     performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);

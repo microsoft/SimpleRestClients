@@ -222,7 +222,7 @@ export class SimpleWebRequest<T> {
         this._url = newUrl;
     }
 
-    setHeader(key: string, val: string): void {
+    setHeader(key: string, val: string|undefined): void {
         if (!this._options.headers) {
             this._options.headers = {};
         }
