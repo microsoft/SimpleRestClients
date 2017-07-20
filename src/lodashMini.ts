@@ -8,6 +8,7 @@
 */
 
 import clone = require('lodash/clone');
+import cloneDeep = require('lodash/cloneDeep');
 import isString = require('lodash/isString');
 import defaults = require('lodash/defaults');
 import remove = require('lodash/remove');
@@ -17,6 +18,7 @@ import forEach = require('lodash/forEach');
 import map = require('lodash/map');
 import isObject = require('lodash/isObject');
 import pull = require('lodash/pull');
+import extend = require('lodash/extend');
 
 export interface Dictionary<T> {
     [index: string]: T;
@@ -24,6 +26,7 @@ export interface Dictionary<T> {
 
 export {
     clone,
+    cloneDeep,
     isString,
     defaults,
     remove,
@@ -32,5 +35,6 @@ export {
     forEach,
     map,
     isObject,
-    pull
+    pull,
+    extend
 };
