@@ -82,7 +82,12 @@ export interface WebRequestOptions {
     acceptType?: string;
     contentType?: string;
     sendData?: SendDataType;
-    headers?: { [header: string]: string };
+    /* Deprecated: use overrideGetHeaders */ headers?: { [header: string]: string };
+
+    // Used instead of calling getHeaders.
+    overrideGetHeaders?: { [header: string]: string };
+    // Overrides all other headers.
+    augmentHeaders?: { [header: string]: string };
 
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
 
@@ -167,7 +172,8 @@ export class SimpleWebRequest<T> {
     private _retryTimer: number;
     private _retryExponentialTime = new ExponentialTime(1000, 300000);
 
-    constructor(private _action: string, private _url: string, options: WebRequestOptions) {
+    constructor(private _action: string, private _url: string, options: WebRequestOptions,
+            private _getHeaders?: () => { [key: string]: string; }) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -223,19 +229,30 @@ export class SimpleWebRequest<T> {
     }
 
     setHeader(key: string, val: string|undefined): void {
-        if (!this._options.headers) {
-            this._options.headers = {};
+        if (!this._options.augmentHeaders) {
+            this._options.augmentHeaders = {};
         }
 
         if (val) {
-            this._options.headers[key] = val;
+            this._options.augmentHeaders[key] = val;
         } else {
-            delete this._options.headers[key];
+            delete this._options.augmentHeaders[key];
         }
     }
 
     getRequestHeaders(): { [header: string]: string } {
-        return _.clone(this._options.headers);
+        const shouldGetHeaders = this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers;
+        return _.extend(
+            {},
+            shouldGetHeaders ? this._getHeaders() : undefined,
+            this._options.overrideGetHeaders,
+            this._options.headers,
+            this._options.augmentHeaders
+        );
+    }
+
+    getOptions(): Readonly<WebRequestOptions> {
+        return _.cloneDeep(this._options);
     }
 
     setPriority(newPriority: WebRequestPriority): void {
@@ -405,9 +422,10 @@ export class SimpleWebRequest<T> {
 
         this._xhr.withCredentials = this._options.withCredentials;
 
+        const nextHeaders = this.getRequestHeaders();
         // check/process headers
         let headersCheck: _.Dictionary<boolean> = {};
-        _.forEach(this._options.headers, (val, key) => {
+        _.forEach(nextHeaders, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
                 assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');

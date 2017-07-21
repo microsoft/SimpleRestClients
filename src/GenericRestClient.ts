@@ -63,21 +63,21 @@ export class GenericRestClient {
 
     private _performApiCallInternal<T>(apiPath: string, action: HttpAction, options: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
-        if (!options.headers) {
-            options.headers = this._getHeaders(options);
-        }
 
         if (options.eTag) {
-            options.headers['If-None-Match'] = options.eTag;
+            if (!options.augmentHeaders) {
+                options.augmentHeaders = {};
+            }
+            options.augmentHeaders['If-None-Match'] = options.eTag;
         }
-
+        
         if (!options.contentType) {
             options.contentType = _.isString(options.sendData) ? 'form' : 'json';
         }
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
 
-        let request = new SimpleWebRequest<T>(action, finalUrl, options);
+        let request = new SimpleWebRequest<T>(action, finalUrl, options, () => this._getHeaders(options));
         return request.start().then(resp => {
             this._processSuccessResponse<T>(resp);
             return resp;
