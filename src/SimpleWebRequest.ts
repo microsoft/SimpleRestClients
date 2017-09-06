@@ -417,7 +417,7 @@ export class SimpleWebRequest<T> {
         }
 
         const acceptType = this._options.acceptType || 'json';
-        this._xhr.responseType = acceptType === 'blob' ? 'arraybuffer' : 'json';
+        this._xhr.responseType = this._getResponseType(acceptType);
         this._xhr.setRequestHeader('Accept', SimpleWebRequest.mapContentType(acceptType));
 
         this._xhr.withCredentials = this._options.withCredentials;
@@ -661,5 +661,24 @@ export class SimpleWebRequest<T> {
 
         // Freed up a spot, so let's see if there's other stuff pending
         SimpleWebRequest.checkQueueProcessing();
+    }
+
+    private _getResponseType(acceptType: string): XMLHttpRequestResponseType {
+        let responseType: XMLHttpRequestResponseType;
+
+        switch (acceptType) {
+            case 'blob':
+                responseType = 'arraybuffer';
+                break;
+            case 'text/xml':
+            case 'application/xml':
+                responseType = 'document';
+                break;
+            default:
+                responseType = 'json';
+                break;
+        }
+
+        return responseType;
     }
 }
