@@ -203,8 +203,10 @@ export class SimpleWebRequest<T> {
         if (this._xhr) {
             // Abort the in-flight request
             this._xhr.abort();
+        } else {
+            // this._xhr.abort() trigger this._xhr.onAbort() callback which already call _respond()
+            this._respond();
         }
-        this._respond();
     }
 
     start(): SyncTasks.Promise<WebResponse<T>> {
@@ -612,50 +614,44 @@ export class SimpleWebRequest<T> {
             if (this._options.augmentErrorResponse) {
                 this._options.augmentErrorResponse(errResp);
             }
+            // Policy-adaptable failure
+            const handleResponse = (this._options.customErrorHandler || DefaultErrorHandler)(this, errResp);
 
-            if (errResp.canceled || errResp.statusCode === 0) {
-                // Fail aborted requests and statusCode zero (bad connectivity/CORS) responses immediately, bypassing any
-                // customErrorHandler, since there's no info to work off, these are always permanent failures.
-                this._deferred.reject(errResp);
-            } else {
-                // Policy-adaptable failure
-                const handleResponse = (this._options.customErrorHandler || DefaultErrorHandler)(this, errResp);
+            const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
+                this._options.retries > 0 ||
+                handleResponse === ErrorHandlingType.PauseUntilResumed ||
+                handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
+                handleResponse === ErrorHandlingType.RetryUncountedWithBackoff);
 
-                const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
-                    this._options.retries > 0 ||
-                    handleResponse === ErrorHandlingType.PauseUntilResumed ||
-                    handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
-                    handleResponse === ErrorHandlingType.RetryUncountedWithBackoff);
-
-                if (retry) {
-                    if (handleResponse === ErrorHandlingType.RetryCountedWithBackoff) {
-                        this._options.retries--;
-                    }
-
-                    if (this._requestTimeoutTimer) {
-                        SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
-                        this._requestTimeoutTimer = undefined;
-                    }
-
-                    this._finishHandled = false;
-
-                    // Clear the XHR since we technically just haven't started again yet...
-                    this._xhr = undefined;
-
-                    if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
-                        this._paused = true;
-                    } else if (handleResponse === ErrorHandlingType.RetryUncountedImmediately) {
-                        this._enqueue();
-                    } else {
-                        this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
-                            this._retryTimer = undefined;
-                            this._enqueue();
-                        }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
-                    }
-                } else {
-                    // No more retries -- fail.
-                    this._deferred.reject(errResp);
+            if (retry) {
+                if (handleResponse === ErrorHandlingType.RetryCountedWithBackoff) {
+                    this._options.retries--;
                 }
+
+                if (this._requestTimeoutTimer) {
+                    SimpleWebRequestOptions.clearTimeout(this._requestTimeoutTimer);
+                    this._requestTimeoutTimer = undefined;
+                }
+
+                this._aborted = false;
+                this._finishHandled = false;
+
+                // Clear the XHR since we technically just haven't started again yet...
+                this._xhr = undefined;
+
+                if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
+                    this._paused = true;
+                } else if (handleResponse === ErrorHandlingType.RetryUncountedImmediately) {
+                    this._enqueue();
+                } else {
+                    this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
+                        this._retryTimer = undefined;
+                        this._enqueue();
+                    }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
+                }
+            } else {
+                // No more retries -- fail.
+                this._deferred.reject(errResp);
             }
         }
 
