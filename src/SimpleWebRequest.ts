@@ -203,10 +203,10 @@ export class SimpleWebRequest<T> {
         if (this._xhr) {
             // Abort the in-flight request
             this._xhr.abort();
-        } else {
-            // this._xhr.abort() trigger this._xhr.onAbort() callback which already call _respond()
-            this._respond();
         }
+
+        // Cannot rely on this._xhr.abort() to trigger this._xhr.onAbort() synchronously, thus we must trigger an early response here
+        this._respond();
     }
 
     start(): SyncTasks.Promise<WebResponse<T>> {
