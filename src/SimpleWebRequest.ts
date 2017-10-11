@@ -200,13 +200,13 @@ export class SimpleWebRequest<T> {
             return;
         }
 
+        // Cannot rely on this._xhr.abort() to trigger this._xhr.onAbort() synchronously, thus we must trigger an early response here
+        this._respond();
+
         if (this._xhr) {
             // Abort the in-flight request
             this._xhr.abort();
         }
-
-        // Cannot rely on this._xhr.abort() to trigger this._xhr.onAbort() synchronously, thus we must trigger an early response here
-        this._respond();
     }
 
     start(): SyncTasks.Promise<WebResponse<T>> {
@@ -637,7 +637,15 @@ export class SimpleWebRequest<T> {
                 this._finishHandled = false;
 
                 // Clear the XHR since we technically just haven't started again yet...
-                this._xhr = undefined;
+                if (this._xhr) {
+                    this._xhr.onabort = null;
+                    this._xhr.onerror = null;
+                    this._xhr.onload = null;
+                    this._xhr.onprogress = null;
+                    this._xhr.onreadystatechange = null;
+                    this._xhr.ontimeout = null;
+                    this._xhr = undefined;
+                }
 
                 if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
                     this._paused = true;
