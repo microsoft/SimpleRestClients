@@ -128,8 +128,8 @@ export let SimpleWebRequestOptions: SimpleWebRequestOptions = {
 };
 
 export function DefaultErrorHandler(webRequest: SimpleWebRequest<any>, errResp: WebErrorResponse) {
-    if (errResp.statusCode >= 400 && errResp.statusCode < 600) {
-        // Fail 4xx/5xx requests immediately. These are permenent failures, and shouldn't have retry logic applied to them.
+    if (!errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
+        // Fail 0/4xx/5xx requests immediately. These are permenent failures, and shouldn't have retry logic applied to them.
         return ErrorHandlingType.DoNotRetry;
     }
 
