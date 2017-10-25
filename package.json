@@ -6,18 +6,18 @@
   "scripts": {
     "prepublish": "tsc",
     "build": "npm run tslint && tsc",
-    "tslint": "tslint --project tsconfig.json -r tslint.json -r ./node_modules/tslint-microsoft-contrib --fix || true"
+    "tslint": "tslint --project tsconfig.json -r tslint.json --fix || true"
   },
   "dependencies": {
     "@types/lodash": "^4.14.62",
     "assert": "^1.4.1",
-    "lodash": "3.x || 4.x",
-    "synctasks": "^0.2.10"
+    "lodash": "4.x",
+    "synctasks": "^0.2.23"
   },
   "devDependencies": {
-    "typescript": "^2.2.0",
-    "tslint": "^5.0.0",
-    "tslint-microsoft-contrib": "^4.0.1"
+    "tslint": "5.4.3",
+    "tslint-microsoft-contrib": "5.0.0",
+    "typescript": "2.6.0-rc"
   },
   "repository": {
     "type": "git",

@@ -16,12 +16,13 @@ export interface WebResponse<T> {
     url: string;
     method: string;
     statusCode: number;
-    statusText: string;
+    statusText: string|undefined;
     headers: { [header: string]: string };
     body: T;
 }
 
 export interface WebErrorResponse extends WebResponse<any> {
+    body: any;
     canceled?: boolean;
     timedOut?: boolean;
 }
@@ -155,8 +156,8 @@ export class SimpleWebRequest<T> {
     private static _onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
     private static _timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
-    private _xhr: XMLHttpRequest;
-    private _requestTimeoutTimer: number;
+    private _xhr: XMLHttpRequest|undefined;
+    private _requestTimeoutTimer: number|undefined;
     private _deferred: SyncTasks.Deferred<WebResponse<T>>;
     private _options: WebRequestOptions;
 
@@ -169,7 +170,7 @@ export class SimpleWebRequest<T> {
     // 2. Safari seems to have a bug where sometimes it double-resolves happily-completed xmlhttprequests
     private _finishHandled = false;
 
-    private _retryTimer: number;
+    private _retryTimer: number|undefined;
     private _retryExponentialTime = new ExponentialTime(1000, 300000);
 
     constructor(private _action: string, private _url: string, options: WebRequestOptions,
@@ -243,10 +244,10 @@ export class SimpleWebRequest<T> {
     }
 
     getRequestHeaders(): { [header: string]: string } {
-        const shouldGetHeaders = this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers;
         return _.extend(
             {},
-            shouldGetHeaders ? this._getHeaders() : undefined,
+            this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers ?
+                this._getHeaders() : undefined,
             this._options.overrideGetHeaders,
             this._options.headers,
             this._options.augmentHeaders
@@ -290,7 +291,8 @@ export class SimpleWebRequest<T> {
 
     private _enqueue(): void {
         // Throw it on the queue
-        const index = _.findIndex(SimpleWebRequest.requestQueue, request => request._options.priority < this._options.priority);
+        const index = _.findIndex(SimpleWebRequest.requestQueue, request =>
+            (request._options.priority || WebRequestPriority.DontCare) < (this._options.priority || WebRequestPriority.DontCare));
         if (index > -1) {
             SimpleWebRequest.requestQueue.splice(index, 0, this);
         } else {
@@ -303,7 +305,7 @@ export class SimpleWebRequest<T> {
 
     private static checkQueueProcessing() {
         while (this.requestQueue.length > 0 && this.executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
-            const req = this.requestQueue.shift();
+            const req = this.requestQueue.shift()!!!;
             this.executingList.push(req);
             req._fire();
         }
@@ -318,7 +320,7 @@ export class SimpleWebRequest<T> {
         const openError = _.attempt(() => {
             // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
             // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
-            this._xhr.open(this._action, this._url, true);
+            this._xhr!!!.open(this._action, this._url, true);
         });
 
         if (openError) {
@@ -366,7 +368,7 @@ export class SimpleWebRequest<T> {
                 SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
             }
             this._xhr.onreadystatechange = (e) => {
-                if (this._xhr.readyState !== 4) {
+                if (this._xhr!!!.readyState !== 4) {
                     // Wait for it to finish
                     return;
                 }
@@ -422,7 +424,7 @@ export class SimpleWebRequest<T> {
         this._xhr.responseType = this._getResponseType(acceptType);
         this._xhr.setRequestHeader('Accept', SimpleWebRequest.mapContentType(acceptType));
 
-        this._xhr.withCredentials = this._options.withCredentials;
+        this._xhr.withCredentials = !!this._options.withCredentials;
 
         const nextHeaders = this.getRequestHeaders();
         // check/process headers
@@ -445,7 +447,7 @@ export class SimpleWebRequest<T> {
             }
 
             headersCheck[headerLower] = true;
-            this._xhr.setRequestHeader(key, val);
+            this._xhr!!!.setRequestHeader(key, val);
         });
 
         if (this._options.sendData) {
@@ -506,7 +508,7 @@ export class SimpleWebRequest<T> {
                 statusText: 'Browser Error - Possible CORS or Connectivity Issue',
                 headers: {},
                 body: undefined
-            };
+            } as WebErrorResponse;
         }
 
         // Parse out headers
@@ -590,7 +592,7 @@ export class SimpleWebRequest<T> {
         }
 
         let statusCode = 0;
-        let statusText: string;
+        let statusText: string|undefined;
         if (this._xhr) {
             try {
                 statusCode = this._xhr.status;
@@ -618,14 +620,14 @@ export class SimpleWebRequest<T> {
             const handleResponse = (this._options.customErrorHandler || DefaultErrorHandler)(this, errResp);
 
             const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
-                this._options.retries > 0 ||
+                (this._options.retries && this._options.retries > 0) ||
                 handleResponse === ErrorHandlingType.PauseUntilResumed ||
                 handleResponse === ErrorHandlingType.RetryUncountedImmediately ||
                 handleResponse === ErrorHandlingType.RetryUncountedWithBackoff);
 
             if (retry) {
                 if (handleResponse === ErrorHandlingType.RetryCountedWithBackoff) {
-                    this._options.retries--;
+                    this._options.retries!!!--;
                 }
 
                 if (this._requestTimeoutTimer) {
@@ -638,12 +640,12 @@ export class SimpleWebRequest<T> {
 
                 // Clear the XHR since we technically just haven't started again yet...
                 if (this._xhr) {
-                    this._xhr.onabort = null;
-                    this._xhr.onerror = null;
-                    this._xhr.onload = null;
-                    this._xhr.onprogress = null;
-                    this._xhr.onreadystatechange = null;
-                    this._xhr.ontimeout = null;
+                    this._xhr.onabort = null!!!;
+                    this._xhr.onerror = null!!!;
+                    this._xhr.onload = null!!!;
+                    this._xhr.onprogress = null!!!;
+                    this._xhr.onreadystatechange = null!!!;
+                    this._xhr.ontimeout = null!!!;
                     this._xhr = undefined;
                 }
 

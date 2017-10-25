@@ -6,7 +6,6 @@
 * Base client type for accessing RESTful services
 */
 
-import assert = require('assert');
 import SyncTasks = require('synctasks');
 import _ = require('./lodashMini');
 
@@ -46,7 +45,7 @@ export class GenericRestClient {
         this._endpointUrl = endpointUrl;
     }
 
-    protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions)
+    protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions?: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T>> {
         let options = _.defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
 
@@ -100,38 +99,38 @@ export class GenericRestClient {
         // No-op by default
     }
 
-    performApiGet<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+    performApiGet<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiGetDetailed<T>(apiPath, options).then(resp => resp.body);
     }
-    performApiGetDetailed<T>(apiPath: string, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+    performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'GET', null, options);
     }
 
-    performApiPost<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+    performApiPost<T>(apiPath: string, objToPost: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiPostDetailed<T>(apiPath, objToPost, options).then(resp => resp.body);
     }
-    performApiPostDetailed<T>(apiPath: string, objToPost: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+    performApiPostDetailed<T>(apiPath: string, objToPost: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
-    performApiPatch<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+    performApiPatch<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiPatchDetailed<T>(apiPath, objToPatch, options).then(resp => resp.body);
     }
-    performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+    performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
-    performApiPut<T>(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+    performApiPut<T>(apiPath: string, objToPut: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiPutDetailed<T>(apiPath, objToPut, options).then(resp => resp.body);
     }
-    performApiPutDetailed<T>(apiPath: string, objToPut: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+    performApiPutDetailed<T>(apiPath: string, objToPut: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'PUT', objToPut, options);
     }
 
-    performApiDelete<T>(apiPath: string, objToDelete: any = null, options: ApiCallOptions = null): SyncTasks.Promise<T> {
+    performApiDelete<T>(apiPath: string, objToDelete: any = null, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiDeleteDetailed<T>(apiPath, objToDelete, options).then(resp => resp.body);
     }
-    performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options: ApiCallOptions = null): SyncTasks.Promise<WebResponse<T>> {
+    performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
         return this._performApiCall<T>(apiPath, 'DELETE', objToDelete, options);
     }
 }
