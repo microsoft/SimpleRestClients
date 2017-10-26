@@ -6,8 +6,8 @@
 * Base client type for accessing RESTful services
 */
 
+import _ = require('lodash');
 import SyncTasks = require('synctasks');
-import _ = require('./lodashMini');
 
 import { SimpleWebRequest, WebRequestOptions, WebResponse } from './SimpleWebRequest';
 
@@ -89,7 +89,7 @@ export class GenericRestClient {
     }
 
     // Override (but make sure to call super and chain appropriately) this function if you want to add more blocking criteria.
-    protected _blockRequestUntil(options: ApiCallOptions): void|SyncTasks.Promise<void> {
+    protected _blockRequestUntil(options: ApiCallOptions): SyncTasks.Promise<void>|undefined {
         // No-op by default
         return undefined;
     }
@@ -103,7 +103,7 @@ export class GenericRestClient {
         return this.performApiGetDetailed<T>(apiPath, options).then(resp => resp.body);
     }
     performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {
-        return this._performApiCall<T>(apiPath, 'GET', null, options);
+        return this._performApiCall<T>(apiPath, 'GET', undefined, options);
     }
 
     performApiPost<T>(apiPath: string, objToPost: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
@@ -127,7 +127,7 @@ export class GenericRestClient {
         return this._performApiCall<T>(apiPath, 'PUT', objToPut, options);
     }
 
-    performApiDelete<T>(apiPath: string, objToDelete: any = null, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiDelete<T>(apiPath: string, objToDelete?: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
         return this.performApiDeleteDetailed<T>(apiPath, objToDelete, options).then(resp => resp.body);
     }
     performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T>> {

@@ -7,24 +7,27 @@
 */
 
 import assert = require('assert');
+import _ = require('lodash');
 import SyncTasks = require('synctasks');
-import _ = require('./lodashMini');
 
 import { ExponentialTime } from './ExponentialTime';
 
-export interface WebResponse<T> {
+export interface WebResponseBase {
     url: string;
     method: string;
     statusCode: number;
     statusText: string|undefined;
-    headers: { [header: string]: string };
+    headers: _.Dictionary<string>;
+}
+
+export interface WebResponse<T> extends WebResponseBase {
     body: T;
 }
 
-export interface WebErrorResponse extends WebResponse<any> {
+export interface WebErrorResponse extends WebResponseBase {
     body: any;
-    canceled?: boolean;
-    timedOut?: boolean;
+    canceled: boolean;
+    timedOut: boolean;
 }
 
 export enum WebRequestPriority {
@@ -63,7 +66,7 @@ export interface NativeFileData {
     file: NativeBlobFileData | File;
 }
 
-export interface XMLHttpRequestProgressEvent extends Event {
+export interface XMLHttpRequestProgressEvent extends ProgressEvent {
     lengthComputable: boolean;
     loaded: number;
     path: string[];
@@ -83,16 +86,16 @@ export interface WebRequestOptions {
     acceptType?: string;
     contentType?: string;
     sendData?: SendDataType;
-    /* Deprecated: use overrideGetHeaders */ headers?: { [header: string]: string };
+    /* Deprecated: use overrideGetHeaders */ headers?: _.Dictionary<string>;
 
     // Used instead of calling getHeaders.
-    overrideGetHeaders?: { [header: string]: string };
+    overrideGetHeaders?: _.Dictionary<string>;
     // Overrides all other headers.
-    augmentHeaders?: { [header: string]: string };
+    augmentHeaders?: _.Dictionary<string>;
 
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
 
-    customErrorHandler?: (webRequest: SimpleWebRequest<any>, errorResponse: WebErrorResponse) => ErrorHandlingType;
+    customErrorHandler?: (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse) => ErrorHandlingType;
     augmentErrorResponse?: (resp: WebErrorResponse) => void;
 }
 
@@ -112,7 +115,7 @@ export let DefaultOptions: WebRequestOptions = {
     priority: WebRequestPriority.Normal
 };
 
-export interface SimpleWebRequestOptions {
+export interface ISimpleWebRequestOptions {
     // Maximum executing requests allowed.  Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
 
@@ -121,14 +124,14 @@ export interface SimpleWebRequestOptions {
     clearTimeout: (id: number) => void;
 }
 
-export let SimpleWebRequestOptions: SimpleWebRequestOptions = {
+export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
 
-    setTimeout: setTimeout.bind(null),
-    clearTimeout: clearTimeout.bind(null)
+    setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
+    clearTimeout: (id: number) => window.clearTimeout(id)
 };
 
-export function DefaultErrorHandler(webRequest: SimpleWebRequest<any>, errResp: WebErrorResponse) {
+export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebErrorResponse) {
     if (errResp.canceled || !errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
         // Fail canceled/0/4xx/5xx requests immediately. These are permenent failures, and shouldn't have retry logic applied to them.
         return ErrorHandlingType.DoNotRetry;
@@ -146,36 +149,347 @@ const enum FeatureSupportStatus {
     Supported
 }
 
-export class SimpleWebRequest<T> {
-    // List of pending requests, sorted from most important to least important (numerically descending)
-    private static requestQueue: SimpleWebRequest<any>[] = [];
+// List of pending requests, sorted from most important to least important (numerically descending)
+let requestQueue: SimpleWebRequestBase[] = [];
 
-    // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
-    private static executingList: SimpleWebRequest<any>[] = [];
+// List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
+let executingList: SimpleWebRequestBase[] = [];
 
-    private static _onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
-    private static _timeoutSupportStatus = FeatureSupportStatus.Unknown;
+// Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
+let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
+let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
-    private _xhr: XMLHttpRequest|undefined;
-    private _requestTimeoutTimer: number|undefined;
-    private _deferred: SyncTasks.Deferred<WebResponse<T>>;
-    private _options: WebRequestOptions;
+export abstract class SimpleWebRequestBase {
+    protected _xhr: XMLHttpRequest|undefined;
+    protected _requestTimeoutTimer: number|undefined;
+    protected _options: WebRequestOptions;
 
-    private _aborted = false;
-    private _timedOut = false;
-    private _paused = false;
-
+    protected _aborted = false;
+    protected _timedOut = false;
+    protected _paused = false;
+    
     // De-dupe result handling for two reasons so far:
     // 1. Various platforms have bugs where they double-resolves aborted xmlhttprequests
     // 2. Safari seems to have a bug where sometimes it double-resolves happily-completed xmlhttprequests
-    private _finishHandled = false;
+    protected _finishHandled = false;
+    
+    protected _retryTimer: number|undefined;
+    protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
-    private _retryTimer: number|undefined;
-    private _retryExponentialTime = new ExponentialTime(1000, 300000);
-
-    constructor(private _action: string, private _url: string, options: WebRequestOptions,
-            private _getHeaders?: () => { [key: string]: string; }) {
+    constructor(protected _action: string, protected _url: string, options: WebRequestOptions,
+            protected _getHeaders?: () => _.Dictionary<string>) {
         this._options = _.defaults(options, DefaultOptions);
+    }
+
+    getPriority(): WebRequestPriority {
+        return this._options.priority || WebRequestPriority.DontCare;
+    }
+
+    abstract abort(): void;
+
+    protected static checkQueueProcessing() {
+        while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
+            const req = requestQueue.shift()!!!;
+            executingList.push(req);
+            req._fire();
+        }
+    }
+
+    // TSLint thinks that this function is unused.  Silly tslint.
+    // tslint:disable-next-line
+    private _fire(): void {
+        this._xhr = new XMLHttpRequest();
+
+        // xhr.open() can throw an exception for a CSP violation.
+        const openError = _.attempt(() => {
+            // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
+            // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
+            this._xhr!!!.open(this._action, this._url, true);
+        });
+
+        if (openError) {
+            this._respond(openError.toString());
+            return;
+        }
+
+        if (this._options.timeout) {
+            const timeoutSupported = timeoutSupportStatus;
+             // Use manual timer if we don't know about timeout support
+            if (timeoutSupported !== FeatureSupportStatus.Supported) {
+                assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
+                this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
+                    this._requestTimeoutTimer = undefined;
+
+                    this._timedOut = true;
+                    this.abort();
+                }, this._options.timeout);
+            }
+
+            // This is our first completed request. Use it for feature detection
+            if (timeoutSupported === FeatureSupportStatus.Supported || timeoutSupported <= FeatureSupportStatus.Detecting) {
+                // timeout and ontimeout are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
+                this._xhr.timeout = this._options.timeout;
+                this._xhr.ontimeout = () => {
+                    timeoutSupportStatus = FeatureSupportStatus.Supported;
+                    if (timeoutSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                        return;
+                    }
+                    this._timedOut = true;
+                    // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
+                    this._aborted = true;
+                    this._respond();
+                };
+            }
+        }
+
+        const onLoadErrorSupported = onLoadErrorSupportStatus;
+
+        // Use onreadystatechange if we don't know about onload support or it onload is not supported
+        if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+            if (onLoadErrorSupported === FeatureSupportStatus.Unknown) {
+                // Set global status to detecting, leave local state so we can set a timer on finish
+                onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
+            }
+            this._xhr.onreadystatechange = (e) => {
+                if (this._xhr!!!.readyState !== 4) {
+                    // Wait for it to finish
+                    return;
+                }
+
+                // This is the first request completed (unknown status when fired, detecting now), use it for detection
+                if (onLoadErrorSupported === FeatureSupportStatus.Unknown &&
+                        onLoadErrorSupportStatus === FeatureSupportStatus.Detecting) {
+                    // If onload hasn't fired within 10 seconds of completion, detect as not supported
+                    SimpleWebRequestOptions.setTimeout(() => {
+                        if (onLoadErrorSupportStatus !== FeatureSupportStatus.Supported) {
+                            onLoadErrorSupportStatus = FeatureSupportStatus.NotSupported;
+                        }
+                    }, 10000);
+                }
+
+                this._respond();
+            };
+        }
+
+        if (onLoadErrorSupported !== FeatureSupportStatus.NotSupported) {
+            // onLoad and onError are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
+            this._xhr.onload = () => {
+                onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                    return;
+                }
+                this._respond();
+            };
+            this._xhr.onerror = () => {
+                onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
+                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
+                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
+                    return;
+                }
+                this._respond();
+            };
+        }
+
+        this._xhr.onabort = (e) => {
+            // If the browser cancels us (page navigation or whatever), it sometimes calls both the readystatechange and this,
+            // so make sure we know that this is an abort.
+            this._aborted = true;
+
+            this._respond();
+        };
+
+        if (this._xhr.upload && this._options.onProgress) {
+            this._xhr.upload.onprogress = this._options.onProgress as any as (ev: ProgressEvent) => void;
+        }
+
+        const acceptType = this._options.acceptType || 'json';
+        this._xhr.responseType = SimpleWebRequestBase._getResponseType(acceptType);
+        this._xhr.setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
+
+        this._xhr.withCredentials = !!this._options.withCredentials;
+
+        const nextHeaders = this.getRequestHeaders();
+        // check/process headers
+        let headersCheck: _.Dictionary<boolean> = {};
+        _.forEach(nextHeaders, (val, key) => {
+            const headerLower = key.toLowerCase();
+            if (headerLower === 'content-type') {
+                assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
+                return;
+            }
+            if (headerLower === 'accept') {
+                assert.ok(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
+                return;
+            }
+            assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
+
+            if (val === undefined || val === null) {
+                console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
+                return;
+            }
+
+            headersCheck[headerLower] = true;
+            this._xhr!!!.setRequestHeader(key, val);
+        });
+
+        if (this._options.sendData) {
+            const contentType = SimpleWebRequestBase.mapContentType(this._options.contentType || 'json');
+            this._xhr.setRequestHeader('Content-Type', contentType);
+
+            const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
+
+            this._xhr.send(sendData);
+        } else {
+            this._xhr.send();
+        }
+    }
+
+    static mapContentType(contentType: string): string {
+        if (contentType === 'json') {
+            return 'application/json';
+        } else if (contentType === 'form') {
+            return 'application/x-www-form-urlencoded';
+        } else {
+            return contentType;
+        }
+    }
+
+    static mapBody(sendData: SendDataType, contentType: string): SendDataType {
+        let body = sendData;
+        if (isJsonContentType(contentType)) {
+            if (!_.isString(sendData)) {
+                body = JSON.stringify(sendData);
+            }
+        } else if (isFormContentType(contentType)) {
+            if (!_.isString(sendData) && _.isObject(sendData)) {
+                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
+                    encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
+                body = params.join('&');
+            }
+        } else if (isFormDataContentType(contentType)) {
+            if (_.isObject(sendData)) {
+                // Note: This only works for IE10 and above.
+                body = new FormData();
+                _.forEach(sendData as _.Dictionary<any>, (val, key) => {
+                    (body as FormData).append(key, val);
+                });
+            } else {
+                assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
+            }
+        }
+
+        return body;
+    }
+
+    setUrl(newUrl: string): void {
+        this._url = newUrl;
+    }
+
+    setHeader(key: string, val: string|undefined): void {
+        if (!this._options.augmentHeaders) {
+            this._options.augmentHeaders = {};
+        }
+
+        if (val) {
+            this._options.augmentHeaders[key] = val;
+        } else {
+            delete this._options.augmentHeaders[key];
+        }
+    }
+
+    getRequestHeaders(): { [header: string]: string } {
+        let headers: { [header: string]: string } = {};
+
+        if (this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers) {
+            headers = _.extend(headers, this._getHeaders());
+        }
+
+        if (this._options.overrideGetHeaders) {
+            headers = _.extend(headers, this._options.overrideGetHeaders);
+        }
+
+        if (this._options.headers) {
+            headers = _.extend(headers, this._options.headers);
+        }
+
+        if (this._options.augmentHeaders) {
+            headers = _.extend(headers, this._options.augmentHeaders);
+        }
+
+        return headers;
+    }
+
+    getOptions(): Readonly<WebRequestOptions> {
+        return _.cloneDeep(this._options);
+    }
+
+    setPriority(newPriority: WebRequestPriority): void {
+        if (this._options.priority === newPriority) {
+            return;
+        }
+
+        this._options.priority = newPriority;
+
+        if (this._paused) {
+            return;
+        }
+
+        if (this._xhr) {
+            // Already fired -- wait for it to retry for the new priority to matter
+            return;
+        }
+
+        // Remove and re-queue
+        _.remove(requestQueue, item => item === this);
+        this._enqueue();
+    }
+
+    resumeRetrying(): void {
+        if (!this._paused) {
+            assert.ok(false, 'resumeRetrying() called but not paused!');
+            return;
+        }
+
+        this._paused = false;
+        this._enqueue();
+    }
+
+    protected _enqueue(): void {
+        // Throw it on the queue
+        const index = _.findIndex(requestQueue, request =>
+            request.getPriority() < (this._options.priority || WebRequestPriority.DontCare));
+        if (index > -1) {
+            requestQueue.splice(index, 0, this);
+        } else {
+            requestQueue.push(this);
+        }
+
+        // See if it's time to execute it
+        SimpleWebRequestBase.checkQueueProcessing();
+    }
+
+    private static _getResponseType(acceptType: string): XMLHttpRequestResponseType {
+        if (acceptType === 'blob') {
+            return 'arraybuffer';
+        }
+
+        if (acceptType === 'text/xml' || acceptType === 'application/xml') {
+            return 'document';
+        }
+
+        return 'json';
+    }
+
+    protected abstract _respond(errorStatusText?: string): void;
+}
+
+export class SimpleWebRequest<T> extends SimpleWebRequestBase {
+    private _deferred: SyncTasks.Deferred<WebResponse<T>>;
+
+    constructor(action: string, url: string, options: WebRequestOptions, getHeaders?: () => _.Dictionary<string>) {
+        super(action, url, options, getHeaders);
     }
 
     abort(): void {
@@ -227,342 +541,7 @@ export class SimpleWebRequest<T> {
         return this._deferred.promise();
     }
 
-    setUrl(newUrl: string): void {
-        this._url = newUrl;
-    }
-
-    setHeader(key: string, val: string|undefined): void {
-        if (!this._options.augmentHeaders) {
-            this._options.augmentHeaders = {};
-        }
-
-        if (val) {
-            this._options.augmentHeaders[key] = val;
-        } else {
-            delete this._options.augmentHeaders[key];
-        }
-    }
-
-    getRequestHeaders(): { [header: string]: string } {
-        return _.extend(
-            {},
-            this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers ?
-                this._getHeaders() : undefined,
-            this._options.overrideGetHeaders,
-            this._options.headers,
-            this._options.augmentHeaders
-        );
-    }
-
-    getOptions(): Readonly<WebRequestOptions> {
-        return _.cloneDeep(this._options);
-    }
-
-    setPriority(newPriority: WebRequestPriority): void {
-        if (this._options.priority === newPriority) {
-            return;
-        }
-
-        this._options.priority = newPriority;
-
-        if (this._paused) {
-            return;
-        }
-
-        if (this._xhr) {
-            // Already fired -- wait for it to retry for the new priority to matter
-            return;
-        }
-
-        // Remove and re-queue
-        _.remove(SimpleWebRequest.requestQueue, item => item === this);
-        this._enqueue();
-    }
-
-    resumeRetrying(): void {
-        if (!this._paused) {
-            assert.ok(false, 'resumeRetrying() called but not paused!');
-            return;
-        }
-
-        this._paused = false;
-        this._enqueue();
-    }
-
-    private _enqueue(): void {
-        // Throw it on the queue
-        const index = _.findIndex(SimpleWebRequest.requestQueue, request =>
-            (request._options.priority || WebRequestPriority.DontCare) < (this._options.priority || WebRequestPriority.DontCare));
-        if (index > -1) {
-            SimpleWebRequest.requestQueue.splice(index, 0, this);
-        } else {
-            SimpleWebRequest.requestQueue.push(this);
-        }
-
-        // See if it's time to execute it
-        SimpleWebRequest.checkQueueProcessing();
-    }
-
-    private static checkQueueProcessing() {
-        while (this.requestQueue.length > 0 && this.executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
-            const req = this.requestQueue.shift()!!!;
-            this.executingList.push(req);
-            req._fire();
-        }
-    }
-
-    // TSLint thinks that this function is unused.  Silly tslint.
-    // tslint:disable-next-line
-    private _fire(): void {
-        this._xhr = new XMLHttpRequest();
-
-        // xhr.open() can throw an exception for a CSP violation.
-        const openError = _.attempt(() => {
-            // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
-            // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
-            this._xhr!!!.open(this._action, this._url, true);
-        });
-
-        if (openError) {
-            this._respond(openError.toString());
-            return;
-        }
-
-        if (this._options.timeout) {
-            const timeoutSupported = SimpleWebRequest._timeoutSupportStatus;
-             // Use manual timer if we don't know about timeout support
-            if (timeoutSupported !== FeatureSupportStatus.Supported) {
-                assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
-                this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
-                    this._requestTimeoutTimer = undefined;
-
-                    this._timedOut = true;
-                    this.abort();
-                }, this._options.timeout);
-            }
-
-            // This is our first completed request. Use it for feature detection
-            if (timeoutSupported === FeatureSupportStatus.Supported || timeoutSupported <= FeatureSupportStatus.Detecting) {
-                // timeout and ontimeout are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
-                this._xhr.timeout = this._options.timeout;
-                this._xhr.ontimeout = () => {
-                    SimpleWebRequest._timeoutSupportStatus = FeatureSupportStatus.Supported;
-                    if (timeoutSupported !== FeatureSupportStatus.Supported) {
-                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
-                        return;
-                    }
-                    this._timedOut = true;
-                    // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
-                    this._aborted = true;
-                    this._respond();
-                };
-            }
-        }
-
-        const onLoadErrorSupported = SimpleWebRequest._onLoadErrorSupportStatus;
-
-        // Use onreadystatechange if we don't know about onload support or it onload is not supported
-        if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
-            if (onLoadErrorSupported === FeatureSupportStatus.Unknown) {
-                // Set global status to detecting, leave local state so we can set a timer on finish
-                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
-            }
-            this._xhr.onreadystatechange = (e) => {
-                if (this._xhr!!!.readyState !== 4) {
-                    // Wait for it to finish
-                    return;
-                }
-
-                // This is the first request completed (unknown status when fired, detecting now), use it for detection
-                if (onLoadErrorSupported === FeatureSupportStatus.Unknown &&
-                        SimpleWebRequest._onLoadErrorSupportStatus === FeatureSupportStatus.Detecting) {
-                    // If onload hasn't fired within 10 seconds of completion, detect as not supported
-                    SimpleWebRequestOptions.setTimeout(() => {
-                        if (SimpleWebRequest._onLoadErrorSupportStatus !== FeatureSupportStatus.Supported) {
-                            SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.NotSupported;
-                        }
-                    }, 10000);
-                }
-
-                this._respond();
-            };
-        }
-
-        if (onLoadErrorSupported !== FeatureSupportStatus.NotSupported) {
-            // onLoad and onError are part of the XMLHttpRequest Level 2 spec, should be supported in most modern browsers
-            this._xhr.onload = () => {
-                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
-                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
-                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
-                    return;
-                }
-                this._respond();
-            };
-            this._xhr.onerror = () => {
-                SimpleWebRequest._onLoadErrorSupportStatus = FeatureSupportStatus.Supported;
-                if (onLoadErrorSupported !== FeatureSupportStatus.Supported) {
-                    // When this request initially fired we didn't know about support, bail & let the fallback method handle this
-                    return;
-                }
-                this._respond();
-            };
-        }
-
-        this._xhr.onabort = (e) => {
-            // If the browser cancels us (page navigation or whatever), it sometimes calls both the readystatechange and this,
-            // so make sure we know that this is an abort.
-            this._aborted = true;
-
-            this._respond();
-        };
-
-        if (this._xhr.upload && this._options.onProgress) {
-            this._xhr.upload.onprogress = this._options.onProgress as any as (ev: ProgressEvent) => void;
-        }
-
-        const acceptType = this._options.acceptType || 'json';
-        this._xhr.responseType = this._getResponseType(acceptType);
-        this._xhr.setRequestHeader('Accept', SimpleWebRequest.mapContentType(acceptType));
-
-        this._xhr.withCredentials = !!this._options.withCredentials;
-
-        const nextHeaders = this.getRequestHeaders();
-        // check/process headers
-        let headersCheck: _.Dictionary<boolean> = {};
-        _.forEach(nextHeaders, (val, key) => {
-            const headerLower = key.toLowerCase();
-            if (headerLower === 'content-type') {
-                assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
-                return;
-            }
-            if (headerLower === 'accept') {
-                assert.ok(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
-                return;
-            }
-            assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
-
-            if (val === undefined || val === null) {
-                console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
-                return;
-            }
-
-            headersCheck[headerLower] = true;
-            this._xhr!!!.setRequestHeader(key, val);
-        });
-
-        if (this._options.sendData) {
-            const contentType = SimpleWebRequest.mapContentType(this._options.contentType || 'json');
-            this._xhr.setRequestHeader('Content-Type', contentType);
-
-            const sendData = SimpleWebRequest.mapBody(this._options.sendData, contentType);
-
-            this._xhr.send(sendData);
-        } else {
-            this._xhr.send();
-        }
-    }
-
-    static mapContentType(contentType: string): string {
-        if (contentType === 'json') {
-            return 'application/json';
-        } else if (contentType === 'form') {
-            return 'application/x-www-form-urlencoded';
-        } else {
-            return contentType;
-        }
-    }
-
-    static mapBody(sendData: SendDataType, contentType: string): SendDataType {
-        let body = sendData;
-        if (isJsonContentType(contentType)) {
-            if (!_.isString(sendData)) {
-                body = JSON.stringify(sendData);
-            }
-        } else if (isFormContentType(contentType)) {
-            if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
-                    encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
-                body = params.join('&');
-            }
-        } else if (isFormDataContentType(contentType)) {
-            if (_.isObject(sendData)) {
-                // Note: This only works for IE10 and above.
-                body = new FormData();
-                _.forEach(sendData as _.Dictionary<any>, (val, key) => {
-                    (body as FormData).append(key, val);
-                });
-            } else {
-                assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
-            }
-        }
-
-        return body;
-    }
-
-    private _getResponseInfo(statusCode: number): WebResponse<T> {
-        if (!this._xhr) {
-            return {
-                url: this._url,
-                method: this._action,
-                statusCode: 0,
-                statusText: 'Browser Error - Possible CORS or Connectivity Issue',
-                headers: {},
-                body: undefined
-            } as WebErrorResponse;
-        }
-
-        // Parse out headers
-        let headers: { [header: string]: string } = {};
-        const headerLines = (this._xhr.getAllResponseHeaders() || '').split(/\r?\n/);
-        headerLines.forEach(line => {
-            if (line.length === 0) {
-                return;
-            }
-
-            const index = line.indexOf(':');
-            if (index === -1) {
-                headers[line] = '';
-            } else {
-                headers[line.substr(0, index).toLowerCase()] = line.substr(index + 1).trim();
-            }
-        });
-
-        // Some browsers apparently don't set the content-type header in some error conditions from getAllResponseHeaders but do return
-        // it from the normal getResponseHeader.  No clue why, but superagent mentions it as well so it's best to just conform.
-        if (!headers['content-type']) {
-            const check = this._xhr.getResponseHeader('content-type');
-            if (check) {
-                headers['content-type'] = check;
-            }
-        }
-
-        let body = this._xhr.response;
-        if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
-            if (!body || !_.isObject(body)) {
-                // Looks like responseType didn't parse it for us -- try shimming it in from responseText
-                try {
-                    // Even accessing responseText may throw
-                    if (this._xhr.responseText) {
-                        body = JSON.parse(this._xhr.responseText);
-                    }
-                } catch (e) {
-                    // Catch it so we don't explode, but the client won't get any object out the other side, so they'll probably explode
-                    // there instead anyway.
-                }
-            }
-        }
-
-        return {
-            url: this._xhr.responseURL || this._url,
-            method: this._action,
-            statusCode: statusCode,
-            statusText: this._xhr.statusText,
-            headers: headers,
-            body: body
-        };
-    }
-
-    private _respond(errorStatusText?: string) {
+    protected _respond(errorStatusText?: string) {
         if (this._finishHandled) {
             // Aborted web requests often double-finish due to odd browser behavior, but non-aborted requests shouldn't...
             // Unfortunately, this assertion fires frequently in the Safari browser, presumably due to a non-standard
@@ -576,9 +555,9 @@ export class SimpleWebRequest<T> {
 
         // Pull it out of whichever queue it's sitting in
         if (this._xhr) {
-            _.pull(SimpleWebRequest.executingList, this);
+            _.pull(executingList, this as SimpleWebRequestBase);
         } else {
-            _.pull(SimpleWebRequest.requestQueue, this);
+            _.pull(requestQueue, this as SimpleWebRequestBase);
         }
 
         if (this._retryTimer) {
@@ -600,24 +579,86 @@ export class SimpleWebRequest<T> {
             } catch (e) {
                 // Some browsers error when you try to read status off aborted requests
             }
+        } else {
+            statusText = 'Browser Error - Possible CORS or Connectivity Issue';
         }
 
-        const resp = this._getResponseInfo(statusCode);
+        let headers: _.Dictionary<string> = {};
+        let body: any;
+        
+        // Build the response info
+        if (this._xhr) {
+            // Parse out headers
+            const headerLines = (this._xhr.getAllResponseHeaders() || '').split(/\r?\n/);
+            headerLines.forEach(line => {
+                if (line.length === 0) {
+                    return;
+                }
 
-        if ((statusCode >= 200 && statusCode < 300) || statusCode === 304) {
+                const index = line.indexOf(':');
+                if (index === -1) {
+                    headers[line] = '';
+                } else {
+                    headers[line.substr(0, index).toLowerCase()] = line.substr(index + 1).trim();
+                }
+            });
+
+            // Some browsers apparently don't set the content-type header in some error conditions from getAllResponseHeaders but do return
+            // it from the normal getResponseHeader.  No clue why, but superagent mentions it as well so it's best to just conform.
+            if (!headers['content-type']) {
+                const check = this._xhr.getResponseHeader('content-type');
+                if (check) {
+                    headers['content-type'] = check;
+                }
+            }
+
+            body = this._xhr.response;
+            if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
+                if (!body || !_.isObject(body)) {
+                    // Looks like responseType didn't parse it for us -- try shimming it in from responseText
+                    try {
+                        // Even accessing responseText may throw
+                        if (this._xhr.responseText) {
+                            body = JSON.parse(this._xhr.responseText);
+                        }
+                    } catch (e) {
+                        // Catch it so we don't explode, but the client won't get any object out the other side, so they'll probably explode
+                        // there instead anyway.
+                    }
+                }
+            }
+        }
+
+        if (this._xhr && ((statusCode >= 200 && statusCode < 300) || statusCode === 304)) {
             // Happy path!
+            const resp: WebResponse<T> = {
+                url: this._xhr.responseURL || this._url,
+                method: this._action,
+                statusCode: statusCode,
+                statusText: statusText,
+                headers: headers,
+                body: body as T
+            };
             this._deferred.resolve(resp);
         } else {
-            let errResp = resp as WebErrorResponse;
-            errResp.canceled = this._aborted;
-            errResp.timedOut = this._timedOut;
-            errResp.statusText = statusText;
+            let errResp: WebErrorResponse = {
+                url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
+                method: this._action,
+                statusCode: statusCode,
+                statusText: statusText,
+                headers: headers,
+                body: body,
+                canceled: this._aborted,
+                timedOut: this._timedOut
+            };
 
             if (this._options.augmentErrorResponse) {
                 this._options.augmentErrorResponse(errResp);
             }
+
             // Policy-adaptable failure
-            const handleResponse = (this._options.customErrorHandler || DefaultErrorHandler)(this, errResp);
+            const handleResponse = this._options.customErrorHandler ? this._options.customErrorHandler(this, errResp) :
+                DefaultErrorHandler(this, errResp);
 
             const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
                 (this._options.retries && this._options.retries > 0) ||
@@ -666,25 +707,6 @@ export class SimpleWebRequest<T> {
         }
 
         // Freed up a spot, so let's see if there's other stuff pending
-        SimpleWebRequest.checkQueueProcessing();
-    }
-
-    private _getResponseType(acceptType: string): XMLHttpRequestResponseType {
-        let responseType: XMLHttpRequestResponseType;
-
-        switch (acceptType) {
-            case 'blob':
-                responseType = 'arraybuffer';
-                break;
-            case 'text/xml':
-            case 'application/xml':
-                responseType = 'document';
-                break;
-            default:
-                responseType = 'json';
-                break;
-        }
-
-        return responseType;
+        SimpleWebRequestBase.checkQueueProcessing();
     }
 }
