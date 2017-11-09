@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -12,12 +12,12 @@
     "@types/lodash": "^4.14.62",
     "assert": "^1.4.1",
     "lodash": "4.x",
-    "synctasks": "^0.2.23"
+    "synctasks": "^0.3.0"
   },
   "devDependencies": {
     "tslint": "5.4.3",
     "tslint-microsoft-contrib": "5.0.0",
-    "typescript": "2.6.0-rc"
+    "typescript": "^2.6.0"
   },
   "repository": {
     "type": "git",
