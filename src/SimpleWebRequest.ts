@@ -629,7 +629,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
             }
         }
 
-        if (this._xhr && ((statusCode >= 200 && statusCode < 300) || statusCode === 304)) {
+        if (this._xhr && this._xhr.readyState === 4 && ((statusCode >= 200 && statusCode < 300) || statusCode === 304)) {
             // Happy path!
             const resp: WebResponse<T> = {
                 url: this._xhr.responseURL || this._url,
