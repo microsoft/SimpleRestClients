@@ -15,6 +15,8 @@ import { ExponentialTime } from './ExponentialTime';
 export interface WebResponseBase {
     url: string;
     method: string;
+    requestOptions: WebRequestOptions;
+    requestHeaders: _.Dictionary<string>;
     statusCode: number;
     statusText: string|undefined;
     headers: _.Dictionary<string>;
@@ -161,6 +163,7 @@ let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
 export abstract class SimpleWebRequestBase {
     protected _xhr: XMLHttpRequest|undefined;
+    protected _xhrRequestheaders: _.Dictionary<string>|undefined;
     protected _requestTimeoutTimer: number|undefined;
     protected _options: WebRequestOptions;
 
@@ -199,6 +202,7 @@ export abstract class SimpleWebRequestBase {
     // tslint:disable-next-line
     private _fire(): void {
         this._xhr = new XMLHttpRequest();
+        this._xhrRequestheaders = {};
 
         // xhr.open() can throw an exception for a CSP violation.
         const openError = _.attempt(() => {
@@ -306,7 +310,7 @@ export abstract class SimpleWebRequestBase {
 
         const acceptType = this._options.acceptType || 'json';
         this._xhr.responseType = SimpleWebRequestBase._getResponseType(acceptType);
-        this._xhr.setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
+        this._setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
 
         this._xhr.withCredentials = !!this._options.withCredentials;
 
@@ -331,12 +335,12 @@ export abstract class SimpleWebRequestBase {
             }
 
             headersCheck[headerLower] = true;
-            this._xhr!!!.setRequestHeader(key, val);
+            this._setRequestHeader(key, val);
         });
 
         if (this._options.sendData) {
             const contentType = SimpleWebRequestBase.mapContentType(this._options.contentType || 'json');
-            this._xhr.setRequestHeader('Content-Type', contentType);
+            this._setRequestHeader('Content-Type', contentType);
 
             const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
 
@@ -344,6 +348,11 @@ export abstract class SimpleWebRequestBase {
         } else {
             this._xhr.send();
         }
+    }
+
+    private _setRequestHeader(key: string, val: string): void {
+        this._xhr!!!.setRequestHeader(key, val);
+        this._xhrRequestheaders!!![key] = val;
     }
 
     static mapContentType(contentType: string): string {
@@ -634,6 +643,8 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
             const resp: WebResponse<T> = {
                 url: this._xhr.responseURL || this._url,
                 method: this._action,
+                requestOptions: this._options,
+                requestHeaders: this._xhrRequestheaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -644,6 +655,8 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
             let errResp: WebErrorResponse = {
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
                 method: this._action,
+                requestOptions: this._options,
+                requestHeaders: this._xhrRequestheaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -688,6 +701,8 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                     this._xhr.onreadystatechange = null!!!;
                     this._xhr.ontimeout = null!!!;
                     this._xhr = undefined;
+
+                    this._xhrRequestheaders = undefined;
                 }
 
                 if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
