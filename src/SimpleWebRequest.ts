@@ -15,8 +15,8 @@ import { ExponentialTime } from './ExponentialTime';
 export interface WebResponseBase {
     url: string;
     method: string;
-    requestOptions: WebRequestOptions;
-    requestHeaders: _.Dictionary<string>;
+    requestOptions?: WebRequestOptions;
+    requestHeaders?: _.Dictionary<string>;
     statusCode: number;
     statusText: string|undefined;
     headers: _.Dictionary<string>;
