@@ -12,24 +12,36 @@ import SyncTasks = require('synctasks');
 
 import { ExponentialTime } from './ExponentialTime';
 
-export interface WebResponseBase {
+export interface WebTransportResponseBase {
     url: string;
     method: string;
-    requestOptions: WebRequestOptions;
-    requestHeaders: _.Dictionary<string>;
     statusCode: number;
     statusText: string|undefined;
     headers: _.Dictionary<string>;
 }
 
-export interface WebResponse<T> extends WebResponseBase {
+export interface WebTransportResponse<T> extends WebTransportResponseBase {
     body: T;
 }
 
-export interface WebErrorResponse extends WebResponseBase {
+export interface WebTransportErrorResponse extends WebTransportResponseBase {
     body: any;
     canceled: boolean;
     timedOut: boolean;
+}
+
+export interface RestRequestInResponse {
+    requestOptions: WebRequestOptions;
+    requestHeaders: _.Dictionary<string>;
+}
+
+export interface WebResponseBase extends RestRequestInResponse, WebTransportResponseBase {
+}
+
+export interface WebResponse<T> extends RestRequestInResponse, WebTransportResponse<T> {
+}
+
+export interface WebErrorResponse extends RestRequestInResponse, WebTransportErrorResponse {
 }
 
 export enum WebRequestPriority {
@@ -133,7 +145,7 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     clearTimeout: (id: number) => window.clearTimeout(id)
 };
 
-export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebErrorResponse) {
+export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse) {
     if (errResp.canceled || !errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
         // Fail canceled/0/4xx/5xx requests immediately. These are permenent failures, and shouldn't have retry logic applied to them.
         return ErrorHandlingType.DoNotRetry;
