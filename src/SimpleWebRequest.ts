@@ -182,12 +182,12 @@ export abstract class SimpleWebRequestBase {
     protected _aborted = false;
     protected _timedOut = false;
     protected _paused = false;
-    
+
     // De-dupe result handling for two reasons so far:
     // 1. Various platforms have bugs where they double-resolves aborted xmlhttprequests
     // 2. Safari seems to have a bug where sometimes it double-resolves happily-completed xmlhttprequests
     protected _finishHandled = false;
-    
+
     protected _retryTimer: number|undefined;
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
@@ -478,6 +478,13 @@ export abstract class SimpleWebRequestBase {
     }
 
     protected _enqueue(): void {
+        // It's possible for a request to be canceled before it's queued since onCancel fires synchronously and we set up the listener
+        // before queueing for execution
+        // An aborted request should never be queued for execution
+        if (this._aborted) {
+            return;
+        }
+
         // Throw it on the queue
         const index = _.findIndex(requestQueue, request =>
             request.getPriority() < (this._options.priority || WebRequestPriority.DontCare));
@@ -606,7 +613,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
 
         let headers: _.Dictionary<string> = {};
         let body: any;
-        
+
         // Build the response info
         if (this._xhr) {
             // Parse out headers
