@@ -52,7 +52,7 @@ export enum WebRequestPriority {
     Critical = 4
 }
 
-export const enum ErrorHandlingType {
+export enum ErrorHandlingType {
     // Ignore retry policy, if any, and fail immediately
     DoNotRetry,
 
