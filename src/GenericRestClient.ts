@@ -69,7 +69,7 @@ export class GenericRestClient {
             }
             options.augmentHeaders['If-None-Match'] = options.eTag;
         }
-        
+
         if (!options.contentType) {
             options.contentType = _.isString(options.sendData) ? 'form' : 'json';
         }

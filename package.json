@@ -4,20 +4,41 @@
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
-    "prepublish": "tsc",
+    "prepare": "tsc",
+    "clean": "rimraf dist",
     "build": "npm run tslint && tsc",
-    "tslint": "tslint --project tsconfig.json -r tslint.json --fix || true"
+    "tslint": "tslint --project tsconfig.json -r tslint.json --fix || true",
+    "test": "npm run clean && karma start --singleRun",
+    "test:watch": "npm run clean && karma start"
   },
   "dependencies": {
-    "@types/lodash": "^4.14.62",
-    "assert": "^1.4.1",
-    "lodash": "4.x",
-    "synctasks": "^0.3.0"
+    "@types/lodash": "4.14.107",
+    "assert": "1.4.1",
+    "lodash": "4.17.5",
+    "synctasks": "0.3.1"
   },
   "devDependencies": {
-    "tslint": "5.4.3",
-    "tslint-microsoft-contrib": "5.0.0",
-    "typescript": "^2.6.0"
+    "@types/faker": "4.1.2",
+    "@types/jasmine": "2.8.6",
+    "@types/jasmine-ajax": "3.1.37",
+    "faker": "4.1.0",
+    "fork-ts-checker-webpack-plugin": "0.4.1",
+    "jasmine": "3.1.0",
+    "jasmine-core": "3.1.0",
+    "karma": "2.0.0",
+    "karma-chrome-launcher": "2.2.0",
+    "karma-jasmine": "1.1.1",
+    "karma-jasmine-ajax": "0.1.13",
+    "karma-jasmine-html-reporter": "1.0.0",
+    "karma-sourcemap-loader": "0.3.7",
+    "karma-spec-reporter": "0.0.32",
+    "karma-webpack": "4.0.0-beta.0",
+    "rimraf": "2.6.2",
+    "ts-loader": "4.1.0",
+    "tslint": "5.9.1",
+    "tslint-microsoft-contrib": "5.0.3",
+    "typescript": "2.8.1",
+    "webpack": "4.5.0"
   },
   "repository": {
     "type": "git",
