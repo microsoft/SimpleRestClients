@@ -425,8 +425,8 @@ export abstract class SimpleWebRequestBase {
         }
     }
 
-    getRequestHeaders(): { [header: string]: string } {
-        let headers: { [header: string]: string } = {};
+    getRequestHeaders(): Headers {
+        let headers: Headers = {};
 
         if (this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers) {
             headers = _.extend(headers, this._getHeaders());
@@ -523,7 +523,7 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
 
     private _deferred: SyncTasks.Deferred<WebResponse<ResponseBody, RequestOptions>>;
 
-    constructor(action: string, url: string, options: RequestOptions, getHeaders?: () => _.Dictionary<string>) {
+    constructor(action: string, url: string, options: RequestOptions, getHeaders?: () => Headers) {
         super(action, url, options, getHeaders);
     }
 
