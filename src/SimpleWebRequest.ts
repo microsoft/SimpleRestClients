@@ -180,7 +180,7 @@ let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
 export abstract class SimpleWebRequestBase {
     protected _xhr: XMLHttpRequest|undefined;
-    protected _xhrRequestheaders: Headers|undefined;
+    protected _xhrRequestHeaders: Headers|undefined;
     protected _requestTimeoutTimer: number|undefined;
     protected _options: WebRequestOptions;
 
@@ -219,7 +219,7 @@ export abstract class SimpleWebRequestBase {
     // tslint:disable-next-line
     private _fire(): void {
         this._xhr = new XMLHttpRequest();
-        this._xhrRequestheaders = {};
+        this._xhrRequestHeaders = {};
 
         // xhr.open() can throw an exception for a CSP violation.
         const openError = _.attempt(() => {
@@ -369,7 +369,7 @@ export abstract class SimpleWebRequestBase {
 
     private _setRequestHeader(key: string, val: string): void {
         this._xhr!!!.setRequestHeader(key, val);
-        this._xhrRequestheaders!!![key] = val;
+        this._xhrRequestHeaders!!![key] = val;
     }
 
     static mapContentType(contentType: string): string {
@@ -670,7 +670,7 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
                 url: this._xhr.responseURL || this._url,
                 method: this._action,
                 requestOptions: this._options as RequestOptions,
-                requestHeaders: this._xhrRequestheaders || {},
+                requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -683,7 +683,7 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
                 method: this._action,
                 requestOptions: this._options as RequestOptions,
-                requestHeaders: this._xhrRequestheaders || {},
+                requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -730,7 +730,7 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
                     this._xhr.ontimeout = null!!!;
                     this._xhr = undefined;
 
-                    this._xhrRequestheaders = undefined;
+                    this._xhrRequestHeaders = undefined;
                 }
 
                 if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
