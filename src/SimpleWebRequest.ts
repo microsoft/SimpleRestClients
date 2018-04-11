@@ -13,7 +13,7 @@ import SyncTasks = require('synctasks');
 import { ExponentialTime } from './ExponentialTime';
 
 export interface Headers {
-    [header: string]: string;
+    [header: string]: string|undefined;
 }
 
 export interface WebTransportResponseBase {
@@ -24,8 +24,8 @@ export interface WebTransportResponseBase {
     headers: Headers;
 }
 
-export interface WebTransportResponse<ResponseBody> extends WebTransportResponseBase {
-    body: ResponseBody;
+export interface WebTransportResponse<TBody> extends WebTransportResponseBase {
+    body: TBody;
 }
 
 export interface WebTransportErrorResponse extends WebTransportResponseBase {
@@ -34,19 +34,19 @@ export interface WebTransportErrorResponse extends WebTransportResponseBase {
     timedOut: boolean;
 }
 
-export interface RestRequestInResponse<RequestOptions> {
-    requestOptions: RequestOptions;
+export interface RestRequestInResponse<TOptions> {
+    requestOptions: TOptions;
     requestHeaders: Headers;
 }
 
-export interface WebResponseBase<RequestOptions = WebRequestOptions>
-    extends WebTransportResponseBase, RestRequestInResponse<RequestOptions> {}
+export interface WebResponseBase<TOptions = WebRequestOptions>
+    extends WebTransportResponseBase, RestRequestInResponse<TOptions> {}
 
-export interface WebErrorResponse<RequestOptions = WebRequestOptions>
-    extends WebTransportErrorResponse, RestRequestInResponse<RequestOptions> {}
+export interface WebErrorResponse<TOptions = WebRequestOptions>
+    extends WebTransportErrorResponse, RestRequestInResponse<TOptions> {}
 
-export interface WebResponse<ResponseBody, RequestOptions = WebRequestOptions>
-    extends WebTransportResponse<ResponseBody>, RestRequestInResponse<RequestOptions> {}
+export interface WebResponse<TBody, TOptions = WebRequestOptions>
+    extends WebTransportResponse<TBody>, RestRequestInResponse<TOptions> {}
 
 export enum WebRequestPriority {
     DontCare = 0,
@@ -117,19 +117,19 @@ export interface WebRequestOptions {
     augmentErrorResponse?: (resp: WebErrorResponse) => void;
 }
 
-function isJsonContentType(ct: string) {
+function isJsonContentType(ct: string|undefined) {
     return ct && ct.indexOf('application/json') === 0;
 }
 
-function isFormContentType(ct: string) {
+function isFormContentType(ct: string|undefined) {
     return ct && ct.indexOf('application/x-www-form-urlencoded') === 0;
 }
 
-function isFormDataContentType(ct: string) {
+function isFormDataContentType(ct: string|undefined) {
     return ct && ct.indexOf('multipart/form-data') === 0;
 }
 
-export let DefaultOptions: WebRequestOptions = {
+export const DefaultOptions: WebRequestOptions = {
     priority: WebRequestPriority.Normal
 };
 
@@ -178,11 +178,11 @@ let executingList: SimpleWebRequestBase[] = [];
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
 let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
-export abstract class SimpleWebRequestBase {
+export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = WebRequestOptions> {
     protected _xhr: XMLHttpRequest|undefined;
     protected _xhrRequestHeaders: Headers|undefined;
     protected _requestTimeoutTimer: number|undefined;
-    protected _options: WebRequestOptions;
+    protected _options: TOptions;
 
     protected _aborted = false;
     protected _timedOut = false;
@@ -196,7 +196,8 @@ export abstract class SimpleWebRequestBase {
     protected _retryTimer: number|undefined;
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
-    constructor(protected _action: string, protected _url: string, options: WebRequestOptions,
+    constructor(protected _action: string,
+            protected _url: string, options: TOptions,
             protected _getHeaders?: () => Headers) {
         this._options = _.defaults(options, DefaultOptions);
     }
@@ -519,11 +520,11 @@ export abstract class SimpleWebRequestBase {
     protected abstract _respond(errorStatusText?: string): void;
 }
 
-export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> extends SimpleWebRequestBase {
+export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebRequestOptions> extends SimpleWebRequestBase<TOptions> {
 
-    private _deferred: SyncTasks.Deferred<WebResponse<ResponseBody, RequestOptions>>;
+    private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
 
-    constructor(action: string, url: string, options: RequestOptions, getHeaders?: () => Headers) {
+    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers) {
         super(action, url, options, getHeaders);
     }
 
@@ -559,13 +560,13 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
         }
     }
 
-    start(): SyncTasks.Promise<WebResponse<ResponseBody, RequestOptions>> {
+    start(): SyncTasks.Promise<WebResponse<TBody, TOptions>> {
         if (this._deferred) {
             assert.ok(false, 'WebRequest already started');
             return SyncTasks.Rejected('WebRequest already started');
         }
 
-        this._deferred = SyncTasks.Defer<WebResponse<ResponseBody, RequestOptions>>();
+        this._deferred = SyncTasks.Defer<WebResponse<TBody, TOptions>>();
         this._deferred.onCancel(() => {
             // Abort the XHR -- this should chain through to the fail case on readystatechange
             this.abort();
@@ -666,23 +667,23 @@ export class SimpleWebRequest<ResponseBody, RequestOptions = WebRequestOptions> 
 
         if (this._xhr && this._xhr.readyState === 4 && ((statusCode >= 200 && statusCode < 300) || statusCode === 304)) {
             // Happy path!
-            const resp: WebResponse<ResponseBody, RequestOptions> = {
+            const resp: WebResponse<TBody, TOptions> = {
                 url: this._xhr.responseURL || this._url,
                 method: this._action,
-                requestOptions: this._options as RequestOptions,
+                requestOptions: this._options,
                 requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
-                body: body as ResponseBody,
+                body: body as TBody,
             };
 
             this._deferred.resolve(resp);
         } else {
-            let errResp: WebErrorResponse<RequestOptions> = {
+            let errResp: WebErrorResponse<TOptions> = {
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
                 method: this._action,
-                requestOptions: this._options as RequestOptions,
+                requestOptions: this._options,
                 requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
