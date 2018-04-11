@@ -18,8 +18,8 @@ import {
 export type HttpAction = 'POST'|'GET'|'PUT'|'DELETE'|'PATCH';
 
 export interface ApiCallOptions extends WebRequestOptions {
-    excludeEndpointUrl?: boolean;
     backendUrl?: string;
+    excludeEndpointUrl?: boolean;
     eTag?: string;
 }
 

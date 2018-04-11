@@ -13,7 +13,7 @@ import SyncTasks = require('synctasks');
 import { ExponentialTime } from './ExponentialTime';
 
 export interface Headers {
-    [header: string]: string|undefined;
+    [header: string]: string;
 }
 
 export interface WebTransportResponseBase {
@@ -34,7 +34,7 @@ export interface WebTransportErrorResponse extends WebTransportResponseBase {
     timedOut: boolean;
 }
 
-export interface RestRequestInResponse<TOptions> {
+export interface RestRequestInResponse<TOptions = WebRequestOptions> {
     requestOptions: TOptions;
     requestHeaders: Headers;
 }
@@ -117,15 +117,15 @@ export interface WebRequestOptions {
     augmentErrorResponse?: (resp: WebErrorResponse) => void;
 }
 
-function isJsonContentType(ct: string|undefined) {
+function isJsonContentType(ct: string) {
     return ct && ct.indexOf('application/json') === 0;
 }
 
-function isFormContentType(ct: string|undefined) {
+function isFormContentType(ct: string) {
     return ct && ct.indexOf('application/x-www-form-urlencoded') === 0;
 }
 
-function isFormDataContentType(ct: string|undefined) {
+function isFormDataContentType(ct: string) {
     return ct && ct.indexOf('multipart/form-data') === 0;
 }
 
