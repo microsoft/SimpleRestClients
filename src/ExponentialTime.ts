@@ -8,8 +8,8 @@
 
 import assert = require('assert');
 
-const DEFAULT_TIME_GROW_FACTOR = 2.7182818284590451;
-const DEFAULT_TIME_JITTER = 0.11962656472;
+export const DEFAULT_TIME_GROW_FACTOR = 2.7182818284590451;
+export const DEFAULT_TIME_JITTER = 0.11962656472;
 
 export class ExponentialTime {
     private _currentTime: number;
