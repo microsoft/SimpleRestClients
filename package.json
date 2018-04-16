@@ -12,10 +12,10 @@
     "test:watch": "npm run clean && karma start"
   },
   "dependencies": {
-    "@types/lodash": "4.14.107",
-    "assert": "1.4.1",
-    "lodash": "4.17.5",
-    "synctasks": "0.3.1"
+    "@types/lodash": "^4.14.107",
+    "assert": "^1.4.1",
+    "lodash": "^4.17.0",
+    "synctasks": "^0.3.1"
   },
   "devDependencies": {
     "@types/faker": "4.1.2",
