@@ -344,7 +344,7 @@ describe('GenericRestClient', () => {
 
     it('overrides response', () => {
         class Http extends GenericRestClient {
-            protected _processSuccessResponse<T>(resp: any): void {
+            protected _processSuccessResponse(resp: any): void {
                 resp.body = resp.body.map((str: string) => str.trim());
             }
         }
