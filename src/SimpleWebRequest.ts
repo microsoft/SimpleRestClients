@@ -732,7 +732,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                     this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
                         this._retryTimer = undefined;
                         this._enqueue();
-                    }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
+                    }, this._retryExponentialTime.getTimeAndCalculateNext());
                 }
             } else {
                 // No more retries -- fail.
