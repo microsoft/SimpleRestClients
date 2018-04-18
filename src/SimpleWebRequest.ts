@@ -175,7 +175,7 @@ let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
 export abstract class SimpleWebRequestBase {
     protected _xhr: XMLHttpRequest|undefined;
-    protected _xhrRequestheaders: _.Dictionary<string>|undefined;
+    protected _xhrRequestHeaders: _.Dictionary<string>|undefined;
     protected _requestTimeoutTimer: number|undefined;
     protected _options: WebRequestOptions;
 
@@ -214,7 +214,7 @@ export abstract class SimpleWebRequestBase {
     // tslint:disable-next-line
     private _fire(): void {
         this._xhr = new XMLHttpRequest();
-        this._xhrRequestheaders = {};
+        this._xhrRequestHeaders = {};
 
         // xhr.open() can throw an exception for a CSP violation.
         const openError = _.attempt(() => {
@@ -364,7 +364,7 @@ export abstract class SimpleWebRequestBase {
 
     private _setRequestHeader(key: string, val: string): void {
         this._xhr!!!.setRequestHeader(key, val);
-        this._xhrRequestheaders!!![key] = val;
+        this._xhrRequestHeaders!!![key] = val;
     }
 
     static mapContentType(contentType: string): string {
@@ -663,7 +663,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                 url: this._xhr.responseURL || this._url,
                 method: this._action,
                 requestOptions: this._options,
-                requestHeaders: this._xhrRequestheaders || {},
+                requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -675,7 +675,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
                 method: this._action,
                 requestOptions: this._options,
-                requestHeaders: this._xhrRequestheaders || {},
+                requestHeaders: this._xhrRequestHeaders || {},
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
@@ -721,7 +721,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                     this._xhr.ontimeout = null!!!;
                     this._xhr = undefined;
 
-                    this._xhrRequestheaders = undefined;
+                    this._xhrRequestHeaders = undefined;
                 }
 
                 if (handleResponse === ErrorHandlingType.PauseUntilResumed) {
@@ -732,7 +732,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                     this._retryTimer = SimpleWebRequestOptions.setTimeout(() => {
                         this._retryTimer = undefined;
                         this._enqueue();
-                    }, this._retryExponentialTime.getTimeAndCalculateNext()) as any as number;
+                    }, this._retryExponentialTime.getTimeAndCalculateNext());
                 }
             } else {
                 // No more retries -- fail.
