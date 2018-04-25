@@ -12,16 +12,20 @@ import SyncTasks = require('synctasks');
 
 import { ExponentialTime } from './ExponentialTime';
 
+export interface Headers {
+    [header: string]: string;
+}
+
 export interface WebTransportResponseBase {
     url: string;
     method: string;
     statusCode: number;
     statusText: string|undefined;
-    headers: _.Dictionary<string>;
+    headers: Headers;
 }
 
-export interface WebTransportResponse<T> extends WebTransportResponseBase {
-    body: T;
+export interface WebTransportResponse<TBody> extends WebTransportResponseBase {
+    body: TBody;
 }
 
 export interface WebTransportErrorResponse extends WebTransportResponseBase {
@@ -30,19 +34,19 @@ export interface WebTransportErrorResponse extends WebTransportResponseBase {
     timedOut: boolean;
 }
 
-export interface RestRequestInResponse {
-    requestOptions: WebRequestOptions;
-    requestHeaders: _.Dictionary<string>;
+export interface RestRequestInResponse<TOptions = WebRequestOptions> {
+    requestOptions: TOptions;
+    requestHeaders: Headers;
 }
 
-export interface WebResponseBase extends RestRequestInResponse, WebTransportResponseBase {
-}
+export interface WebResponseBase<TOptions = WebRequestOptions>
+    extends WebTransportResponseBase, RestRequestInResponse<TOptions> {}
 
-export interface WebResponse<T> extends RestRequestInResponse, WebTransportResponse<T> {
-}
+export interface WebErrorResponse<TOptions = WebRequestOptions>
+    extends WebTransportErrorResponse, RestRequestInResponse<TOptions> {}
 
-export interface WebErrorResponse extends RestRequestInResponse, WebTransportErrorResponse {
-}
+export interface WebResponse<TBody, TOptions = WebRequestOptions>
+    extends WebTransportResponse<TBody>, RestRequestInResponse<TOptions> {}
 
 export enum WebRequestPriority {
     DontCare = 0,
@@ -77,7 +81,7 @@ export interface NativeBlobFileData {
 }
 
 export interface NativeFileData {
-    file: NativeBlobFileData | File;
+    file: NativeBlobFileData|File;
 }
 
 export interface XMLHttpRequestProgressEvent extends ProgressEvent {
@@ -100,12 +104,12 @@ export interface WebRequestOptions {
     acceptType?: string;
     contentType?: string;
     sendData?: SendDataType;
-    /* Deprecated: use overrideGetHeaders */ headers?: _.Dictionary<string>;
+    /* Deprecated: use overrideGetHeaders */ headers?: Headers;
 
     // Used instead of calling getHeaders.
-    overrideGetHeaders?: _.Dictionary<string>;
+    overrideGetHeaders?: Headers;
     // Overrides all other headers.
-    augmentHeaders?: _.Dictionary<string>;
+    augmentHeaders?: Headers;
 
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
 
@@ -125,7 +129,7 @@ function isFormDataContentType(ct: string) {
     return ct && ct.indexOf('multipart/form-data') === 0;
 }
 
-export let DefaultOptions: WebRequestOptions = {
+export const DefaultOptions: WebRequestOptions = {
     priority: WebRequestPriority.Normal
 };
 
@@ -147,7 +151,8 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
 
 export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse) {
     if (errResp.canceled || !errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
-        // Fail canceled/0/4xx/5xx requests immediately. These are permenent failures, and shouldn't have retry logic applied to them.
+        // Fail canceled/0/4xx/5xx requests immediately.
+        // These are permenent failures, and shouldn't have retry logic applied to them.
         return ErrorHandlingType.DoNotRetry;
     }
 
@@ -173,11 +178,11 @@ let executingList: SimpleWebRequestBase[] = [];
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
 let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
-export abstract class SimpleWebRequestBase {
+export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = WebRequestOptions> {
     protected _xhr: XMLHttpRequest|undefined;
-    protected _xhrRequestHeaders: _.Dictionary<string>|undefined;
+    protected _xhrRequestHeaders: Headers|undefined;
     protected _requestTimeoutTimer: number|undefined;
-    protected _options: WebRequestOptions;
+    protected _options: TOptions;
 
     protected _aborted = false;
     protected _timedOut = false;
@@ -191,8 +196,9 @@ export abstract class SimpleWebRequestBase {
     protected _retryTimer: number|undefined;
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
-    constructor(protected _action: string, protected _url: string, options: WebRequestOptions,
-            protected _getHeaders?: () => _.Dictionary<string>) {
+    constructor(protected _action: string,
+            protected _url: string, options: TOptions,
+            protected _getHeaders?: () => Headers) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -420,8 +426,8 @@ export abstract class SimpleWebRequestBase {
         }
     }
 
-    getRequestHeaders(): { [header: string]: string } {
-        let headers: { [header: string]: string } = {};
+    getRequestHeaders(): Headers {
+        let headers: Headers = {};
 
         if (this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers) {
             headers = _.extend(headers, this._getHeaders());
@@ -488,6 +494,7 @@ export abstract class SimpleWebRequestBase {
         // Throw it on the queue
         const index = _.findIndex(requestQueue, request =>
             request.getPriority() < (this._options.priority || WebRequestPriority.DontCare));
+
         if (index > -1) {
             requestQueue.splice(index, 0, this);
         } else {
@@ -513,10 +520,11 @@ export abstract class SimpleWebRequestBase {
     protected abstract _respond(errorStatusText?: string): void;
 }
 
-export class SimpleWebRequest<T> extends SimpleWebRequestBase {
-    private _deferred: SyncTasks.Deferred<WebResponse<T>>;
+export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebRequestOptions> extends SimpleWebRequestBase<TOptions> {
 
-    constructor(action: string, url: string, options: WebRequestOptions, getHeaders?: () => _.Dictionary<string>) {
+    private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
+
+    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers) {
         super(action, url, options, getHeaders);
     }
 
@@ -552,13 +560,13 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
         }
     }
 
-    start(): SyncTasks.Promise<WebResponse<T>> {
+    start(): SyncTasks.Promise<WebResponse<TBody, TOptions>> {
         if (this._deferred) {
             assert.ok(false, 'WebRequest already started');
             return SyncTasks.Rejected('WebRequest already started');
         }
 
-        this._deferred = SyncTasks.Defer<WebResponse<T>>();
+        this._deferred = SyncTasks.Defer<WebResponse<TBody, TOptions>>();
         this._deferred.onCancel(() => {
             // Abort the XHR -- this should chain through to the fail case on readystatechange
             this.abort();
@@ -611,7 +619,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
             statusText = 'Browser Error - Possible CORS or Connectivity Issue';
         }
 
-        let headers: _.Dictionary<string> = {};
+        let headers: Headers = {};
         let body: any;
 
         // Build the response info
@@ -659,7 +667,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
 
         if (this._xhr && this._xhr.readyState === 4 && ((statusCode >= 200 && statusCode < 300) || statusCode === 304)) {
             // Happy path!
-            const resp: WebResponse<T> = {
+            const resp: WebResponse<TBody, TOptions> = {
                 url: this._xhr.responseURL || this._url,
                 method: this._action,
                 requestOptions: this._options,
@@ -667,11 +675,12 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
-                body: body as T
+                body: body as TBody,
             };
+
             this._deferred.resolve(resp);
         } else {
-            let errResp: WebErrorResponse = {
+            let errResp: WebErrorResponse<TOptions> = {
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
                 method: this._action,
                 requestOptions: this._options,
@@ -681,7 +690,7 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
                 headers: headers,
                 body: body,
                 canceled: this._aborted,
-                timedOut: this._timedOut
+                timedOut: this._timedOut,
             };
 
             if (this._options.augmentErrorResponse) {
@@ -689,8 +698,9 @@ export class SimpleWebRequest<T> extends SimpleWebRequestBase {
             }
 
             // Policy-adaptable failure
-            const handleResponse = this._options.customErrorHandler ? this._options.customErrorHandler(this, errResp) :
-                DefaultErrorHandler(this, errResp);
+            const handleResponse = this._options.customErrorHandler
+                ? this._options.customErrorHandler(this, errResp)
+                : DefaultErrorHandler(this, errResp);
 
             const retry = handleResponse !== ErrorHandlingType.DoNotRetry && (
                 (this._options.retries && this._options.retries > 0) ||

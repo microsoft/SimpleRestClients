@@ -12,11 +12,11 @@
         "strictNullChecks": true,
         "forceConsistentCasingInFileNames": true
     },
-    
-    "filesGlob": [
-        "src/**/*{ts,tsx}"
+
+    "include": [
+        "src/**/*"
     ],
-    
+
     "exclude": [
         "dist",
         "node_modules"

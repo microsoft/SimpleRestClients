@@ -7,7 +7,7 @@
     "forin": true,
     "indent": [true, "spaces"],
     "label-position": true,
-    "max-line-length": [ true, 140 ],
+    "max-line-length": [true, 140],
     "no-arg": true,
     "no-bitwise": false,
     "no-console": [true,
