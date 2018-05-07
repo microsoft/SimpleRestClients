@@ -39,7 +39,6 @@ export class ExponentialTime {
 
         // Differ from java impl -- give it some initial jitter
         this._currentTime = Math.round(this._initialTime * (1 + Math.random() * this._jitterFactor));
-        // console.log('this._currentTime', this._currentTime);
     }
 
     getTime(): number {
@@ -51,8 +50,6 @@ export class ExponentialTime {
     }
 
     calculateNext(): number {
-        // console.log('this._currentTime', this._currentTime);
-
         let delay = this._currentTime * this._growFactor;
 
         if (delay > this._maxTime) {
@@ -86,29 +83,3 @@ export class ExponentialTime {
         return res;
     }
 }
-
-
-// const initialTime = 100;
-// const maxTime = 20000;
-// const growFactor = 0.1;
-// const jitterFactor = 0.0001;
-
-// // const randomValue = 0.9524610209591828;
-
-// const exponentialTime = new ExponentialTime(initialTime, maxTime, growFactor, jitterFactor);
-
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-// console.log(exponentialTime.calculateNext());
-
-// // console.log(exponentialTime.getTime());
-// // console.log(exponentialTime.getIncrementCount() === 2);
