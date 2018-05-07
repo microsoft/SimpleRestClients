@@ -1,16 +1,16 @@
 {
     "compilerOptions": {
+        "forceConsistentCasingInFileNames": true,
+        "noImplicitReturns": true,
+        "strictNullChecks": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noUnusedLocals": true,
         "declaration": true,
         "noResolve": false,
         "module": "commonjs",
         "target": "es5",
-        "outDir": "dist/",
-        "noImplicitAny": true,
-        "noImplicitReturns": true,
-        "noImplicitThis": true,
-        "noUnusedLocals": true,
-        "strictNullChecks": true,
-        "forceConsistentCasingInFileNames": true
+        "outDir": "dist",
     },
 
     "include": [
