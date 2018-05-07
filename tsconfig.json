@@ -12,11 +12,11 @@
         "target": "es5",
         "outDir": "dist",
     },
-    
+
     "include": [
         "src/**/*"
     ],
-    
+
     "exclude": [
         "dist",
         "node_modules"

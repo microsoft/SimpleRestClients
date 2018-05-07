@@ -14,7 +14,7 @@ etc.
 
 ## GenericRestClient Sample Usage
 
-```
+```typescript
 import { GenericRestClient, ApiCallOptions }  from 'simplerestclients';
 import SyncTasks = require('synctasks');
 
