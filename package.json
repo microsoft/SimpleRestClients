@@ -21,6 +21,7 @@
     "@types/faker": "4.1.2",
     "@types/jasmine": "2.8.6",
     "@types/jasmine-ajax": "3.1.37",
+    "@types/node": "9.6.17",
     "faker": "4.1.0",
     "fork-ts-checker-webpack-plugin": "0.4.1",
     "jasmine": "3.1.0",
@@ -55,6 +56,10 @@
     "xmlhttprequest",
     "superagent"
   ],
+  "engines": {
+    "node": ">=9.9.0",
+    "npm": ">=5.6.0"
+  },
   "license": "MIT",
   "types": "dist/SimpleRestClients.d.ts"
 }
