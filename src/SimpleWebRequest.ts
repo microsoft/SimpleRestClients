@@ -362,7 +362,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
             const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
 
-            this._xhr.send(sendData);
+            this._xhr.send(sendData as BodyInit);
         } else {
             this._xhr.send();
         }
