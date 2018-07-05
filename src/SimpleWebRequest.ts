@@ -1,14 +1,14 @@
 /**
-* SimpleWebRequest.ts
-* Author: David de Regt
-* Copyright: Microsoft 2016
-*
-* Simple client for issuing web requests.
-*/
+ * SimpleWebRequest.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2016
+ *
+ * Simple client for issuing web requests.
+ */
 
-import assert = require('assert');
-import _ = require('lodash');
-import SyncTasks = require('synctasks');
+import * as _ from 'lodash';
+import * as assert from 'assert';
+import * as SyncTasks from 'synctasks';
 
 import { ExponentialTime } from './ExponentialTime';
 

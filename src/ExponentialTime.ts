@@ -1,12 +1,12 @@
 ﻿/**
-* ExponentialTime.ts
-* Author: David de Regt
-* Copyright: Microsoft 2016
-*
-* Timer to be used for exponential backoff.  Integrates jitter so as to not slam all services at the same time after backoffs.
-*/
+ * ExponentialTime.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2016
+ *
+ * Timer to be used for exponential backoff.  Integrates jitter so as to not slam all services at the same time after backoffs.
+ */
 
-import assert = require('assert');
+import * as assert from 'assert';
 
 export const DEFAULT_TIME_GROW_FACTOR = 2.7182818284590451;
 export const DEFAULT_TIME_JITTER = 0.11962656472;
