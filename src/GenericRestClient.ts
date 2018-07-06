@@ -1,19 +1,14 @@
 ﻿/**
-* GenericRestClient.ts
-* Author: David de Regt
-* Copyright: Microsoft 2015
-*
-* Base client type for accessing RESTful services
-*/
+ * GenericRestClient.ts
+ * Author: David de Regt
+ * Copyright: Microsoft 2015
+ *
+ * Base client type for accessing RESTful services
+ */
 
-import _ = require('lodash');
-import SyncTasks = require('synctasks');
-import {
-    WebRequestOptions,
-    WebResponse,
-    Headers,
-    SimpleWebRequest,
-} from './SimpleWebRequest';
+import * as SyncTasks from 'synctasks';
+import { defaults, isString } from 'lodash';
+import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
 export type HttpAction = 'POST'|'GET'|'PUT'|'DELETE'|'PATCH';
 
@@ -51,7 +46,7 @@ export class GenericRestClient {
     protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions?: ApiCallOptions)
             : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
-        let options = _.defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+        let options = defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
         if (objToPost) {
             options.sendData = objToPost;
         }
@@ -75,7 +70,7 @@ export class GenericRestClient {
         }
 
         if (!options.contentType) {
-            options.contentType = _.isString(options.sendData) ? 'form' : 'json';
+            options.contentType = isString(options.sendData) ? 'form' : 'json';
         }
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
