@@ -514,6 +514,10 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             return 'document';
         }
 
+        if (acceptType === 'text/plain') {
+            return 'text';
+        }
+
         return 'json';
     }
 
