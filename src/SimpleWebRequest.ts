@@ -655,15 +655,13 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
             body = this._xhr.response;
             if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
                 if (!body || !_.isObject(body)) {
-                    // Looks like responseType didn't parse it for us -- try shimming it in from responseText
-                    try {
-                        // Even accessing responseText may throw
-                        if (this._xhr.responseText) {
-                            body = JSON.parse(this._xhr.responseText);
-                        }
-                    } catch (e) {
-                        // Catch it so we don't explode, but the client won't get any object out the other side, so they'll probably explode
-                        // there instead anyway.
+                    // Response can be null if the responseType does not match what the server actually sends
+                    // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
+                    
+                    // Only access responseText if responseType is "text" or "", otherwise it will throw
+                    // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText
+                    if ((this._xhr.responseType === 'text' || this._xhr.responseType === '') && this._xhr.responseText) {
+                        body = JSON.parse(this._xhr.responseText);
                     }
                 }
             }
