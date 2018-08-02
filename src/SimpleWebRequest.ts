@@ -111,6 +111,8 @@ export interface WebRequestOptions {
     // Overrides all other headers.
     augmentHeaders?: Headers;
 
+    streamingDownloadProgress?: (responseText: string) => void;
+
     onProgress?: (progressEvent: XMLHttpRequestProgressEvent) => void;
 
     customErrorHandler?: (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse) => ErrorHandlingType;
@@ -274,6 +276,10 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
             }
             this._xhr.onreadystatechange = (e) => {
+                if (this._xhr!!!.readyState === 3 && this._options.streamingDownloadProgress) {
+                    this._options.streamingDownloadProgress(this._xhr!!!.responseText);
+                }
+
                 if (this._xhr!!!.readyState !== 4) {
                     // Wait for it to finish
                     return;
