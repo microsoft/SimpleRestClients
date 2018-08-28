@@ -51,12 +51,7 @@ export class GenericRestClient {
             options.sendData = objToPost;
         }
 
-        const promise = this._blockRequestUntil(options);
-        if (!promise) {
-            return this._performApiCallInternal(apiPath, action, options);
-        }
-
-        return promise.then(() => this._performApiCallInternal(apiPath, action, options));
+        return this._performApiCallInternal(apiPath, action, options);
     }
 
     private _performApiCallInternal<T>(apiPath: string, action: HttpAction, options: ApiCallOptions)
@@ -75,7 +70,8 @@ export class GenericRestClient {
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
 
-        return new SimpleWebRequest<T, ApiCallOptions>(action, finalUrl, options, () => this._getHeaders(options))
+        return new SimpleWebRequest<T, ApiCallOptions>(action, finalUrl, options, () => this._getHeaders(options), 
+                () => this._blockRequestUntil(options))
             .start()
             .then(response => {
                 this._processSuccessResponse<T>(response);
@@ -89,6 +85,7 @@ export class GenericRestClient {
     }
 
     // Override (but make sure to call super and chain appropriately) this function if you want to add more blocking criteria.
+    // Also, this might be called multiple times to check if the conditions changed
     protected _blockRequestUntil(options: ApiCallOptions): SyncTasks.Promise<void>|undefined {
         // No-op by default
         return undefined;

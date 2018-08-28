@@ -189,6 +189,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected _aborted = false;
     protected _timedOut = false;
     protected _paused = false;
+    protected _created = Date.now();
 
     // De-dupe result handling for two reasons so far:
     // 1. Various platforms have bugs where they double-resolves aborted xmlhttprequests
@@ -200,7 +201,8 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     constructor(protected _action: string,
             protected _url: string, options: TOptions,
-            protected _getHeaders?: () => Headers) {
+            protected _getHeaders?: () => Headers,
+            protected _blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -213,8 +215,18 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected static checkQueueProcessing() {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
-            executingList.push(req);
-            req._fire();
+            const blockPromise = (req._blockRequestUntil ? req._blockRequestUntil() : SyncTasks.Resolved()) || SyncTasks.Resolved();
+            blockPromise.then(() => {
+                if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
+                    executingList.push(req);
+                    req._fire();
+                } else {
+                    req._enqueue();
+                }
+            }, err => {
+                // fail the request if the block promise is rejected
+                req._respond('Error in _blockRequestUntil: ' + err.toString());
+            });
         }
     }
 
@@ -499,11 +511,16 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         // Throw it on the queue
         const index = _.findIndex(requestQueue, request =>
-            request.getPriority() < (this._options.priority || WebRequestPriority.DontCare));
+            // find a request with the same priority, but newer
+            (request.getPriority() === this.getPriority() && request._created > this._created) ||
+            // or a request with lower priority
+            (request.getPriority() < this.getPriority()));
 
         if (index > -1) {
+            //add me before the found request
             requestQueue.splice(index, 0, this);
         } else {
+            //add me at the end
             requestQueue.push(this);
         }
 
@@ -534,8 +551,9 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
     private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
 
-    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers) {
-        super(action, url, options, getHeaders);
+    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers,
+            blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
+        super(action, url, options, getHeaders, blockRequestUntil);
     }
 
     abort(): void {
@@ -761,4 +779,9 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         // Freed up a spot, so let's see if there's other stuff pending
         SimpleWebRequestBase.checkQueueProcessing();
     }
+}
+
+export function test_resetQueues() {
+    requestQueue = [];
+    executingList = [];
 }
