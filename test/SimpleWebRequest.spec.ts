@@ -103,11 +103,9 @@ describe('SimpleWebRequest', () => {
         };
         const method = 'GET';
         const url = faker.internet.url();
-        const request = new SimpleWebRequest<string>(url, method, {}, () => headers);
         expect(
-            () =>  request.start()
+            () => new SimpleWebRequest<string>(url, method, {}, () => headers).start()
         ).toThrowError(`Don't set Content-Type with options.headers -- use it with the options.contentType property`)
-        _.attempt(request.abort);
     })
 
     describe('blocking', () => {
