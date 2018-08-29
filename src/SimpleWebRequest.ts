@@ -215,7 +215,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected static checkQueueProcessing() {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
-            const blockPromise = (req._blockRequestUntil ? req._blockRequestUntil() : SyncTasks.Resolved()) || SyncTasks.Resolved();
+            const blockPromise = (req._blockRequestUntil&& req._blockRequestUntil()) || SyncTasks.Resolved();
             blockPromise.then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
                     executingList.push(req);
@@ -227,6 +227,23 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 // fail the request if the block promise is rejected
                 req._respond('Error in _blockRequestUntil: ' + err.toString());
             });
+        }
+    }
+
+    protected _removeFromQueue(): void {
+        // Pull it out of whichever queue it's sitting in
+        if (this._xhr) {
+            _.pull(executingList, this);
+        } else {
+            _.pull(requestQueue, this);
+        }
+    }
+
+    protected _assertAndClean(expression: any, message: string): void {
+        if (!expression) {
+            this._removeFromQueue();
+            console.error(message);
+            assert.ok(expression, message);
         }
     }
 
@@ -274,7 +291,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                     this._timedOut = true;
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
-                    this._respond();
+                    this._respond('Aborted');
                 };
             }
         }
@@ -337,7 +354,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             // so make sure we know that this is an abort.
             this._aborted = true;
 
-            this._respond();
+            this._respond('Aborted');
         };
 
         if (this._xhr.upload && this._options.onProgress) {
@@ -356,11 +373,11 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         _.forEach(nextHeaders, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
-                assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
+                this._assertAndClean(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
                 return;
             }
             if (headerLower === 'accept') {
-                assert.ok(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
+                this._assertAndClean(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
                 return;
             }
             assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
@@ -580,7 +597,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         }
 
         // Cannot rely on this._xhr.abort() to trigger this._xhr.onAbort() synchronously, thus we must trigger an early response here
-        this._respond();
+        this._respond('Aborted');
 
         if (this._xhr) {
             // Abort the in-flight request
@@ -617,12 +634,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         this._finishHandled = true;
 
-        // Pull it out of whichever queue it's sitting in
-        if (this._xhr) {
-            _.pull(executingList, this as SimpleWebRequestBase);
-        } else {
-            _.pull(requestQueue, this as SimpleWebRequestBase);
-        }
+        this._removeFromQueue();
 
         if (this._retryTimer) {
             SimpleWebRequestOptions.clearTimeout(this._retryTimer);
@@ -644,7 +656,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 // Some browsers error when you try to read status off aborted requests
             }
         } else {
-            statusText = 'Browser Error - Possible CORS or Connectivity Issue';
+            statusText = errorStatusText || 'Browser Error - Possible CORS or Connectivity Issue';
         }
 
         let headers: Headers = {};
@@ -779,9 +791,4 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         // Freed up a spot, so let's see if there's other stuff pending
         SimpleWebRequestBase.checkQueueProcessing();
     }
-}
-
-export function test_resetQueues() {
-    requestQueue = [];
-    executingList = [];
 }

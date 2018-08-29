@@ -50,13 +50,7 @@ export class GenericRestClient {
         if (objToPost) {
             options.sendData = objToPost;
         }
-
-        return this._performApiCallInternal(apiPath, action, options);
-    }
-
-    private _performApiCallInternal<T>(apiPath: string, action: HttpAction, options: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
-
+        
         if (options.eTag) {
             if (!options.augmentHeaders) {
                 options.augmentHeaders = {};
