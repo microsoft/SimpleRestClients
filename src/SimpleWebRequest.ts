@@ -225,7 +225,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 }
             }, err => {
                 // fail the request if the block promise is rejected
-                req._respond('Error in _blockRequestUntil: ' + err.toString());
+                req._respond('_blockRequestUntil rejected: ' + err);
             });
         }
     }

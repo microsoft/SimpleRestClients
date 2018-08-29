@@ -247,14 +247,15 @@ describe('SimpleWebRequest', () => {
             const url = faker.internet.url();
             const method = 'GET';
             const blockDefer = SyncTasks.Defer<void>();
+            const errorString = 'Terrible error';
             new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise()).start()
             .then(() => fail(), (err: WebErrorResponse) => {
                 expect(err.statusCode).toBe(0);
-                expect(err.statusText).toBe('Error in _blockRequestUntil: Terrible error');
+                expect(err.statusText).toBe('_blockRequestUntil rejected: ' + errorString);
                 done();
             });
             
-            blockDefer.reject('Terrible error');
+            blockDefer.reject(errorString);
         });
     });
 
