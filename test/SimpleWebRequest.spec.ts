@@ -92,7 +92,7 @@ describe('SimpleWebRequest', () => {
         const url = faker.internet.url();
 
         expect(
-            () =>  new SimpleWebRequest<string>(url, method, {}, () => headers).start()
+            () => new SimpleWebRequest<string>(url, method, {}, () => headers).start()
         ).toThrowError(`Don't set Accept with options.headers -- use it with the options.acceptType property`);
 
     })

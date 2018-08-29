@@ -215,7 +215,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected static checkQueueProcessing() {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
-            const blockPromise = (req._blockRequestUntil&& req._blockRequestUntil()) || SyncTasks.Resolved();
+            const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || SyncTasks.Resolved();
             blockPromise.then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
                     executingList.push(req);
@@ -291,7 +291,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                     this._timedOut = true;
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
-                    this._respond('Aborted');
+                    this._respond('TimedOut');
                 };
             }
         }
