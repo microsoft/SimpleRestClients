@@ -269,7 +269,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             const timeoutSupported = timeoutSupportStatus;
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
-                assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
+                this._assertAndClean(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
                     this._requestTimeoutTimer = undefined;
 
@@ -380,7 +380,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 this._assertAndClean(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
                 return;
             }
-            assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
+            this._assertAndClean(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
 
             if (val === undefined || val === null) {
                 console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
