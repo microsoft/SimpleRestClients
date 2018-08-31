@@ -1,5 +1,4 @@
 import * as faker from 'faker';
-import * as _ from 'lodash';
 import { SimpleWebRequest, SimpleWebRequestOptions, WebErrorResponse, WebRequestPriority } from '../src/SimpleWebRequest';
 import { DETAILED_RESPONSE } from './helpers';
 import * as SyncTasks from 'synctasks';
@@ -38,7 +37,7 @@ describe('SimpleWebRequest', () => {
         expect(request.method).toEqual(method);
         expect(request.status).toEqual(statusCode);
         expect(onSuccess).toHaveBeenCalledWith(response);
-    })
+    });
 
     it('sends json POST request', () => {
         const sendData = {
@@ -64,7 +63,7 @@ describe('SimpleWebRequest', () => {
         expect(request.method).toEqual(method);
         expect(request.status).toEqual(statusCode);
         expect(onSuccess).toHaveBeenCalledWith(response);
-    })
+    });
 
     it('allows to set request headers', () => {
         const headers = {
@@ -95,7 +94,7 @@ describe('SimpleWebRequest', () => {
             () => new SimpleWebRequest<string>(url, method, {}, () => headers).start()
         ).toThrowError(`Don't set Accept with options.headers -- use it with the options.acceptType property`);
 
-    })
+    });
 
     it('forbids to set Content-Type header', () => {
         const headers = {
@@ -105,8 +104,8 @@ describe('SimpleWebRequest', () => {
         const url = faker.internet.url();
         expect(
             () => new SimpleWebRequest<string>(url, method, {}, () => headers).start()
-        ).toThrowError(`Don't set Content-Type with options.headers -- use it with the options.contentType property`)
-    })
+        ).toThrowError(`Don't set Content-Type with options.headers -- use it with the options.contentType property`);
+    });
 
     describe('blocking', () => {
         let maxRequests = 0;
@@ -163,7 +162,7 @@ describe('SimpleWebRequest', () => {
             const method = 'GET';
             const blockDefer = SyncTasks.Defer<void>();
             const onSuccess1 = jasmine.createSpy('onSuccess1');
-            new SimpleWebRequest<string>(url, method,{}, undefined, () => blockDefer.promise()).start().then(onSuccess1);
+            new SimpleWebRequest<string>(url, method, {}, undefined, () => blockDefer.promise()).start().then(onSuccess1);
 
             expect(jasmine.Ajax.requests.count()).toBe(0);
             blockDefer.resolve(void 0);
