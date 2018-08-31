@@ -189,6 +189,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected _aborted = false;
     protected _timedOut = false;
     protected _paused = false;
+    protected _created = Date.now();
 
     // De-dupe result handling for two reasons so far:
     // 1. Various platforms have bugs where they double-resolves aborted xmlhttprequests
@@ -200,7 +201,8 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     constructor(protected _action: string,
             protected _url: string, options: TOptions,
-            protected _getHeaders?: () => Headers) {
+            protected _getHeaders?: () => Headers,
+            protected _blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -213,8 +215,35 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected static checkQueueProcessing() {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
-            executingList.push(req);
-            req._fire();
+            const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || SyncTasks.Resolved();
+            blockPromise.then(() => {
+                if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
+                    executingList.push(req);
+                    req._fire();
+                } else {
+                    req._enqueue();
+                }
+            }, err => {
+                // fail the request if the block promise is rejected
+                req._respond('_blockRequestUntil rejected: ' + err);
+            });
+        }
+    }
+
+    protected _removeFromQueue(): void {
+        // Pull it out of whichever queue it's sitting in
+        if (this._xhr) {
+            _.pull(executingList, this);
+        } else {
+            _.pull(requestQueue, this);
+        }
+    }
+
+    protected _assertAndClean(expression: any, message: string): void {
+        if (!expression) {
+            this._removeFromQueue();
+            console.error(message);
+            assert.ok(expression, message);
         }
     }
 
@@ -240,7 +269,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             const timeoutSupported = timeoutSupportStatus;
              // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
-                assert.ok(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
+                this._assertAndClean(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
                     this._requestTimeoutTimer = undefined;
 
@@ -262,7 +291,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                     this._timedOut = true;
                     // Set aborted flag to match simple timer approach, which aborts the request and results in an _respond call
                     this._aborted = true;
-                    this._respond();
+                    this._respond('TimedOut');
                 };
             }
         }
@@ -325,7 +354,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             // so make sure we know that this is an abort.
             this._aborted = true;
 
-            this._respond();
+            this._respond('Aborted');
         };
 
         if (this._xhr.upload && this._options.onProgress) {
@@ -344,14 +373,14 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         _.forEach(nextHeaders, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
-                assert.ok(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
+                this._assertAndClean(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
                 return;
             }
             if (headerLower === 'accept') {
-                assert.ok(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
+                this._assertAndClean(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
                 return;
             }
-            assert.ok(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
+            this._assertAndClean(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
 
             if (val === undefined || val === null) {
                 console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
@@ -499,11 +528,16 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         // Throw it on the queue
         const index = _.findIndex(requestQueue, request =>
-            request.getPriority() < (this._options.priority || WebRequestPriority.DontCare));
+            // find a request with the same priority, but newer
+            (request.getPriority() === this.getPriority() && request._created > this._created) ||
+            // or a request with lower priority
+            (request.getPriority() < this.getPriority()));
 
         if (index > -1) {
+            //add me before the found request
             requestQueue.splice(index, 0, this);
         } else {
+            //add me at the end
             requestQueue.push(this);
         }
 
@@ -534,8 +568,9 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
     private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
 
-    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers) {
-        super(action, url, options, getHeaders);
+    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers,
+            blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
+        super(action, url, options, getHeaders, blockRequestUntil);
     }
 
     abort(): void {
@@ -562,7 +597,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         }
 
         // Cannot rely on this._xhr.abort() to trigger this._xhr.onAbort() synchronously, thus we must trigger an early response here
-        this._respond();
+        this._respond('Aborted');
 
         if (this._xhr) {
             // Abort the in-flight request
@@ -599,12 +634,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         this._finishHandled = true;
 
-        // Pull it out of whichever queue it's sitting in
-        if (this._xhr) {
-            _.pull(executingList, this as SimpleWebRequestBase);
-        } else {
-            _.pull(requestQueue, this as SimpleWebRequestBase);
-        }
+        this._removeFromQueue();
 
         if (this._retryTimer) {
             SimpleWebRequestOptions.clearTimeout(this._retryTimer);
@@ -626,7 +656,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 // Some browsers error when you try to read status off aborted requests
             }
         } else {
-            statusText = 'Browser Error - Possible CORS or Connectivity Issue';
+            statusText = errorStatusText || 'Browser Error - Possible CORS or Connectivity Issue';
         }
 
         let headers: Headers = {};

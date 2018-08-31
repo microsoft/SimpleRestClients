@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "npm run tslint && tsc",
     "tslint": "tslint --project tsconfig.json -r tslint.json --fix || true",
     "test": "npm run clean && karma start --singleRun",
-    "test:watch": "npm run clean && karma start"
+    "test:watch": "npm run clean && karma start",
+    "test:browser": "npm run clean && karma start --browsers=Chrome --single-run=false --auto-watch"
   },
   "dependencies": {
     "@types/lodash": "^4.14.110",

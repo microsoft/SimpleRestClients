@@ -1,6 +1,7 @@
 import * as faker from 'faker';
 import { GenericRestClient, ApiCallOptions } from '../src/GenericRestClient';
 import { DETAILED_RESPONSE, REQUEST_OPTIONS } from './helpers';
+import * as SyncTasks from 'synctasks';
 
 class RestClient extends GenericRestClient { }
 const BASE_URL = faker.internet.url();
@@ -317,7 +318,7 @@ describe('GenericRestClient', () => {
         expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
-    it('performs request with custum headers', () => {
+    it('performs request with custom headers', () => {
         const headers = {
             'Authorization': `Barrier ${faker.random.uuid()}`,
         };
@@ -369,5 +370,32 @@ describe('GenericRestClient', () => {
         expect(request.method).toEqual(method);
         expect(request.status).toEqual(statusCode);
         expect(onSuccess).toHaveBeenCalledWith(body.map((str: string) => str.trim()));
+    });
+
+    it('blocks the request with custom method', () => { 
+        const blockDefer = SyncTasks.Defer<void>();
+
+        class Http extends GenericRestClient {
+            protected _blockRequestUntil() {
+                return blockDefer.promise();
+            }
+        }
+
+        const statusCode = 200;
+        const onSuccess = jasmine.createSpy('onSuccess');
+        const http = new Http(BASE_URL);
+        const path = '/auth';
+
+        http.performApiGet(path)
+            .then(onSuccess);
+
+        let request = jasmine.Ajax.requests.mostRecent();
+        
+        expect(request).toBeUndefined();
+        blockDefer.resolve(void 0);
+
+        request = jasmine.Ajax.requests.mostRecent();
+        request.respondWith({ status: statusCode });
+        expect(onSuccess).toHaveBeenCalled();
     });
 });
