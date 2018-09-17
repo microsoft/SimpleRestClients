@@ -693,7 +693,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 if (!body || !_.isObject(body)) {
                     // Response can be null if the responseType does not match what the server actually sends
                     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
-                    
+
                     // Only access responseText if responseType is "text" or "", otherwise it will throw
                     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText
                     if ((this._xhr.responseType === 'text' || this._xhr.responseType === '') && this._xhr.responseText) {
