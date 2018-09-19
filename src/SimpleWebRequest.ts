@@ -173,6 +173,9 @@ const enum FeatureSupportStatus {
 // List of pending requests, sorted from most important to least important (numerically descending)
 let requestQueue: SimpleWebRequestBase[] = [];
 
+// List of requests blocked on _blockUNtil promises
+let blockedList: SimpleWebRequestBase[] = [];
+
 // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
 let executingList: SimpleWebRequestBase[] = [];
 
@@ -215,8 +218,11 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected static checkQueueProcessing() {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
+            blockedList.push(req);
             const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || SyncTasks.Resolved();
-            blockPromise.then(() => {
+            blockPromise.finally(() => {
+                _.remove(blockedList, req);
+            }).then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
                     executingList.push(req);
                     req._fire();
@@ -231,12 +237,10 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     }
 
     protected _removeFromQueue(): void {
-        // Pull it out of whichever queue it's sitting in
-        if (this._xhr) {
-            _.pull(executingList, this);
-        } else {
-            _.pull(requestQueue, this);
-        }
+        // Only pull from request queue and executing queue here - pulling from the blocked queue can result in requests
+        // being queued up multiple times if _respond fires more than once (it shouldn't, but does happen in the wild)
+        _.remove(executingList, this);
+        _.remove(requestQueue, this);
     }
 
     protected _assertAndClean(expression: any, message: string): void {
@@ -523,6 +527,11 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         // before queueing for execution
         // An aborted request should never be queued for execution
         if (this._aborted) {
+            return;
+        }
+
+        // Check if the current queues, if the request is already in there, nothing to enqueue
+        if (_.includes(executingList, this) || _.includes(blockedList, this) || _.includes(requestQueue, this)) {
             return;
         }
 

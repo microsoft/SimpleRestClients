@@ -1,4 +1,5 @@
 import * as faker from 'faker';
+import { ErrorHandlingType, SimpleWebRequestBase, WebErrorResponse } from '../src/SimpleWebRequest';
 import { GenericRestClient, ApiCallOptions } from '../src/GenericRestClient';
 import { DETAILED_RESPONSE, REQUEST_OPTIONS } from './helpers';
 import * as SyncTasks from 'synctasks';
@@ -8,6 +9,22 @@ const BASE_URL = faker.internet.url();
 const http = new RestClient(BASE_URL);
 
 describe('GenericRestClient', () => {
+    beforeAll(() => {
+        jasmine.Ajax.install();
+        // Run an initial request to finish feature detection - this is needed so we can directly call onLoad
+        const statusCode = 200;
+        const onSuccess = jasmine.createSpy('onSuccess');
+        const path = '/auth';
+
+        http.performApiGet(path)
+            .then(onSuccess);
+
+        const request = jasmine.Ajax.requests.mostRecent();
+        request.respondWith({ status: statusCode });
+        expect(onSuccess).toHaveBeenCalled();
+        jasmine.Ajax.uninstall();
+    });
+
     beforeEach(() => jasmine.Ajax.install());
     afterEach(() => jasmine.Ajax.uninstall());
 
@@ -372,7 +389,7 @@ describe('GenericRestClient', () => {
         expect(onSuccess).toHaveBeenCalledWith(body.map((str: string) => str.trim()));
     });
 
-    it('blocks the request with custom method', () => { 
+    it('blocks the request with custom method', () => {
         const blockDefer = SyncTasks.Defer<void>();
 
         class Http extends GenericRestClient {
@@ -397,5 +414,109 @@ describe('GenericRestClient', () => {
         request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({ status: statusCode });
         expect(onSuccess).toHaveBeenCalled();
+    });
+
+    it('aborting request after failure w/retry', () => {
+        let blockDefer = SyncTasks.Defer<void>();
+
+        class Http extends GenericRestClient {
+            constructor(endpointUrl: string) {
+                super(endpointUrl);
+                this._defaultOptions.customErrorHandler = this._customErrorHandler;
+                this._defaultOptions.timeout = 1;
+            }
+            protected _blockRequestUntil() {
+                return blockDefer.promise();
+            }
+
+            protected _customErrorHandler = (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse) => {
+                if (errorResponse.canceled) {
+                    return ErrorHandlingType.DoNotRetry;
+                }
+                return ErrorHandlingType.RetryUncountedImmediately;
+            }
+        }
+
+        const statusCode = 400;
+        const onSuccess = jasmine.createSpy('onSuccess');
+        const onFailure = jasmine.createSpy('onFailure');
+        const http = new Http(BASE_URL);
+        const path = '/auth';
+
+        const req = http.performApiGet(path)
+            .then(onSuccess)
+            .catch(onFailure);
+
+        blockDefer.resolve(void 0);
+        const request1 = jasmine.Ajax.requests.mostRecent();
+        
+        // Reset blockuntil so retries may block
+        blockDefer = SyncTasks.Defer<void>();
+
+        request1.respondWith({ status: statusCode });
+        expect(onSuccess).not.toHaveBeenCalled();
+        expect(onFailure).not.toHaveBeenCalled();
+
+        // Calls abort function
+        req.cancel();
+
+        expect(onSuccess).not.toHaveBeenCalled();
+        expect(onFailure).toHaveBeenCalled();
+    });
+
+    describe('Timing related tests' , () => {
+        beforeEach(() => {
+            jasmine.clock().install();
+        });
+
+        afterEach(() => {
+            jasmine.clock().uninstall();
+        });
+
+        it('failed request with retry handles multiple _respond calls', () => {
+            let blockDefer = SyncTasks.Defer<void>();
+
+            class Http extends GenericRestClient {
+                constructor(endpointUrl: string) {
+                    super(endpointUrl);
+                    this._defaultOptions.customErrorHandler = this._customErrorHandler;
+                    this._defaultOptions.timeout = 1;
+                }
+                protected _blockRequestUntil() {
+                    return blockDefer.promise();
+                }
+
+                protected _customErrorHandler = () => {
+                    return ErrorHandlingType.RetryUncountedImmediately;
+                }
+            }
+
+            const statusCode = 400;
+            const onSuccess = jasmine.createSpy('onSuccess');
+            const http = new Http(BASE_URL);
+            const path = '/auth';
+
+            http.performApiGet(path)
+                .then(onSuccess);
+
+            blockDefer.resolve(void 0);
+            const request1 = jasmine.Ajax.requests.mostRecent();
+            
+            // Reset blockuntil so retries may block
+            blockDefer = SyncTasks.Defer<void>();
+
+            // Store this so we're able to emulate double-request callbacks
+            const onloadToCall = request1.onload as any;
+            request1.respondWith({ status: statusCode });
+            onloadToCall(undefined);
+            expect(onSuccess).not.toHaveBeenCalled();
+            blockDefer.resolve(void 0);
+
+            jasmine.clock().tick(100);
+
+            const request2 = jasmine.Ajax.requests.mostRecent();
+            request2.respondWith({ status: 200 });
+            expect(onSuccess).toHaveBeenCalled();
+        });
     });
 });
