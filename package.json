@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
