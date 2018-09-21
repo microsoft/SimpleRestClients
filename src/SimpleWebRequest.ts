@@ -223,7 +223,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             blockPromise.finally(() => {
                 _.remove(blockedList, req);
             }).then(() => {
-                if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
+                if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
                     req._fire();
                 } else {

@@ -266,6 +266,19 @@ describe('SimpleWebRequest', () => {
 
             blockDefer.reject(errorString);
         });
+
+        it('does not attempt to fire aborted request, if it was aborted while blocked', () => {
+            SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
+            const url = faker.internet.url();
+            const method = 'GET';
+            const blockDefer = SyncTasks.Defer<void>();
+            const requestPromise = new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise()).start();
+            requestPromise.cancel();
+
+            blockDefer.resolve(void 0);
+            expect(jasmine.Ajax.requests.count()).toBe(0);
+
+        });
     });
 
     // @TODO Add more unit tests
