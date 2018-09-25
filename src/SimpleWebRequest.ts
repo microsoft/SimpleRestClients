@@ -383,7 +383,6 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         }
 
-        this._xhr.responseType = SimpleWebRequestBase._getResponseType(acceptType);
         this._setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
 
         this._xhr.withCredentials = !!this._options.withCredentials;
