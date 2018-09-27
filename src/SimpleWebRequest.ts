@@ -331,6 +331,13 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
                 this._respond();
             };
+        } else if (this._options.streamingDownloadProgress) {
+            // If we support onload and such, but have a streaming download handler, still trap the oRSC.
+            this._xhr.onreadystatechange = (e) => {
+                if (this._xhr!!!.readyState === 3 && this._options.streamingDownloadProgress) {
+                    this._options.streamingDownloadProgress(this._xhr!!!.responseText);
+                }
+            };
         }
 
         if (onLoadErrorSupported !== FeatureSupportStatus.NotSupported) {
