@@ -309,11 +309,19 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
             }
             this._xhr.onreadystatechange = (e) => {
-                if (this._xhr!!!.readyState === 3 && this._options.streamingDownloadProgress) {
-                    this._options.streamingDownloadProgress(this._xhr!!!.responseText);
+                if (!this._xhr) {
+                    return;
                 }
 
-                if (this._xhr!!!.readyState !== 4) {
+                if (this._xhr.readyState === 3 && this._options.streamingDownloadProgress) {
+                    // This callback may result in cancelling the connection, so keep that in mind with any handling after it
+                    // if we decide to stop using the return after this someday down the line.  i.e. this._xhr may be undefined
+                    // when we come back from this call.
+                    this._options.streamingDownloadProgress(this._xhr.responseText);
+                    return;
+                }
+
+                if (this._xhr.readyState !== 4) {
                     // Wait for it to finish
                     return;
                 }
@@ -334,8 +342,15 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         } else if (this._options.streamingDownloadProgress) {
             // If we support onload and such, but have a streaming download handler, still trap the oRSC.
             this._xhr.onreadystatechange = (e) => {
-                if (this._xhr!!!.readyState === 3 && this._options.streamingDownloadProgress) {
-                    this._options.streamingDownloadProgress(this._xhr!!!.responseText);
+                if (!this._xhr) {
+                    return;
+                }
+
+                if (this._xhr.readyState === 3 && this._options.streamingDownloadProgress) {
+                    // This callback may result in cancelling the connection, so keep that in mind with any handling after it
+                    // if we decide to stop using the return after this someday down the line.  i.e. this._xhr may be undefined
+                    // when we come back from this call.
+                    this._options.streamingDownloadProgress(this._xhr.responseText);
                 }
             };
         }
