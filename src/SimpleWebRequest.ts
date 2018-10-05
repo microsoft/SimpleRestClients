@@ -384,7 +384,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         };
 
         if (this._xhr.upload && this._options.onProgress) {
-            this._xhr.upload.onprogress = this._options.onProgress as any as (ev: ProgressEvent) => void;
+            this._xhr.upload.onprogress = this._options.onProgress as (ev: ProgressEvent) => void;
         }
 
         const acceptType = this._options.acceptType || 'json';
