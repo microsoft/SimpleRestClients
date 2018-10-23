@@ -368,9 +368,11 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         const acceptType = this._options.acceptType || 'json';
         const responseType = SimpleWebRequestBase._getResponseType(acceptType);
 
-        try {
-            this._xhr.responseType = responseType;
-        } catch (e) {
+        const responseTypeError = _.attempt(() => {
+            this._xhr!!!.responseType = responseType;
+        });
+
+        if (responseTypeError) {
             // WebKit added support for the json responseType value on 09/03/2013
             // https://bugs.webkit.org/show_bug.cgi?id=73648.
             // Versions of Safari prior to 7 and Android 4 Samsung borwsers are
@@ -379,7 +381,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             // The json response type can be ignored if not supported, because JSON payloads
             // are handled by mapBody anyway
             if (responseType !== 'json') {
-                throw e;
+                throw responseTypeError;
             }
         }
 
