@@ -25,7 +25,7 @@ const calculateExponentialTime = (currentTime: number, growFactor: number, jitte
 
 const calculateDefaultExponentialTime = (initialTime: number, jitterFactor: number): number => (
     Math.round(initialTime * (1 + RANDOM_VALUE * jitterFactor))
-)
+);
 
 describe('ExponentialTime', () => {
     beforeAll(() => {
@@ -64,7 +64,6 @@ describe('ExponentialTime', () => {
         expect(exponentialTime.getTime()).toEqual(normilizeTimeRange(exponentialTime.getTime() * GROW_FACTOR));
         expect(exponentialTime.getIncrementCount()).toEqual(2);
     });
-
 
     it('calculates next time and returns previous time', () => {
         const exponentialTime = new ExponentialTime(INITIAL_TIME, MAX_TIME);

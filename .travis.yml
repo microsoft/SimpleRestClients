@@ -15,8 +15,10 @@ install:
   - npm i
 
 script:
+  - npm run type-check
   - npm run test
   - npm run build
+  - npm run size
 
 cache:
   directories:

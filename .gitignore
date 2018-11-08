@@ -1,4 +1,3 @@
-/node_modules
-/dist
-/src/.vs
-*.user
+node_modules
+dist
+coverage

@@ -1,5 +1,5 @@
 /node_modules
 /src/.vs
-/src/bin
-/src/obj
+/src/.vscode
 *.user
+coverage
