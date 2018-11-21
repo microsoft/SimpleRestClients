@@ -3,3 +3,4 @@
 /src/.vscode
 *.user
 coverage
+.vscode
