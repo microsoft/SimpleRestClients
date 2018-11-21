@@ -6,8 +6,8 @@
  * Base client type for accessing RESTful services
  */
 
-import * as _ from 'lodash';
 import * as SyncTasks from 'synctasks';
+import { defaults } from 'lodash';
 
 import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
@@ -101,7 +101,7 @@ export class GenericRestClient {
     protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions: ApiCallOptions = {})
             : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
-        const options = _.defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions, this._defaultOptions);
+        const options = defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions, this._defaultOptions);
         if (objToPost) {
             options.sendData = objToPost;
         }

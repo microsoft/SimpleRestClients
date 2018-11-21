@@ -6,8 +6,8 @@
  * Simple client for issuing web requests.
  */
 
-import * as _ from 'lodash';
 import * as SyncTasks from 'synctasks';
+import _ from 'lodash';
 import assert from 'simple-assert-ok';
 
 import { ExponentialTime } from './ExponentialTime';
