@@ -746,7 +746,12 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                     // Only access responseText if responseType is "text" or "", otherwise it will throw
                     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText
                     if ((this._xhr.responseType === 'text' || this._xhr.responseType === '') && this._xhr.responseText) {
-                        body = JSON.parse(this._xhr.responseText);
+                        try {
+                            body = JSON.parse(this._xhr.responseText);
+                        } catch (ex) {
+                            // If a service returns invalid JSON in a payload, we can end up here - don't crash
+                            console.warn('Failed to parse XHR JSON response');
+                        }
                     }
                 }
             }
