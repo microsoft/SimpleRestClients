@@ -747,16 +747,13 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
             }
 
             body = this._xhr.response;
-            if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
-                if (!body || !_.isObject(body)) {
-                    // Response can be null if the responseType does not match what the server actually sends
-                    // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
 
-                    // Only access responseText if responseType is "text" or "", otherwise it will throw
-                    // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText
-                    if ((this._xhr.responseType === 'text' || this._xhr.responseType === '') && this._xhr.responseText) {
-                        body = JSON.parse(this._xhr.responseText);
-                    }
+            if (!isJsonContentType(headers['content-type']) && this._isTextResponse()) {
+                try {
+                    body = JSON.parse(this._xhr.responseText);
+                } catch (ex) {
+                    // If a service returns invalid JSON in a payload, we can end up here - don't crash
+                    console.warn('Failed to parse XHR JSON response');
                 }
             }
         }
@@ -848,5 +845,22 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         // Freed up a spot, so let's see if there's other stuff pending
         SimpleWebRequestBase.checkQueueProcessing();
+    }
+
+    private _isTextResponse(): boolean {
+        const xhr = this._xhr!!!;
+        const response = xhr.response;
+        const responseType = xhr.responseType;
+        const responseText = xhr.responseText;
+
+        // Response can be null if the responseType does not match what the server actually sends
+        // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
+        const isEmptyResponse = !response || !_.isObject(response);
+
+        // Only access responseText if responseType is "text" or "", otherwise it will throw
+        // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseText
+        const isText = (responseType === 'text' || responseType === '') && !!responseText;
+
+        return isEmptyResponse && isText;
     }
 }
