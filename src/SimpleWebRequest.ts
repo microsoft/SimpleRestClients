@@ -7,9 +7,9 @@
  */
 
 import * as _ from 'lodash';
-import * as assert from 'assert';
 import * as SyncTasks from 'synctasks';
 
+import { assert } from './utils';
 import { ExponentialTime } from './ExponentialTime';
 
 export interface Headers {
@@ -247,7 +247,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         if (!expression) {
             this._removeFromQueue();
             console.error(message);
-            assert.ok(expression, message);
+            assert(expression, message);
         }
     }
 
@@ -482,7 +482,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                     (body as FormData).append(key, val);
                 });
             } else {
-                assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
+                assert(false, 'contentType multipart/form-data must include an object as sendData');
             }
         }
 
@@ -554,7 +554,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     resumeRetrying(): void {
         if (!this._paused) {
-            assert.ok(false, 'resumeRetrying() called but not paused!');
+            assert(false, 'resumeRetrying() called but not paused!');
             return;
         }
 
@@ -624,7 +624,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
     abort(): void {
         if (this._aborted) {
-            assert.ok(false, 'Already aborted ' + this._action + ' request to ' + this._url);
+            assert(false, 'Already aborted ' + this._action + ' request to ' + this._url);
             return;
         }
 
@@ -641,7 +641,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         }
 
         if (!this._deferred) {
-            assert.ok(false, 'Haven\'t even fired start() yet -- can\'t abort');
+            assert(false, 'Haven\'t even fired start() yet -- can\'t abort');
             return;
         }
 
@@ -656,7 +656,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
     start(): SyncTasks.Promise<WebResponse<TBody, TOptions>> {
         if (this._deferred) {
-            assert.ok(false, 'WebRequest already started');
+            assert(false, 'WebRequest already started');
             return SyncTasks.Rejected('WebRequest already started');
         }
 
@@ -677,7 +677,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
             // Unfortunately, this assertion fires frequently in the Safari browser, presumably due to a non-standard
             // XHR implementation, so we need to comment it out.
             // This also might get hit during browser feature detection process
-            //assert.ok(this._aborted || this._timedOut, 'Double-finished XMLHttpRequest');
+            // assert(this._aborted || this._timedOut, 'Double-finished XMLHttpRequest');
             return;
         }
 

@@ -6,7 +6,7 @@
  * Timer to be used for exponential backoff.  Integrates jitter so as to not slam all services at the same time after backoffs.
  */
 
-import * as assert from 'assert';
+import { assert } from './utils';
 
 export const DEFAULT_TIME_GROW_FACTOR = 2.7182818284590451;
 export const DEFAULT_TIME_JITTER = 0.11962656472;
@@ -26,10 +26,10 @@ export class ExponentialTime {
             private _growFactor = DEFAULT_TIME_GROW_FACTOR,
             private _jitterFactor = DEFAULT_TIME_JITTER) {
 
-        assert.ok(this._initialTime > 0, 'Initial delay must be positive');
-        assert.ok(this._maxTime > 0, 'Delay upper bound must be positive');
-        assert.ok(this._growFactor >= 0, 'Ratio must be non-negative');
-        assert.ok(this._jitterFactor >= 0, 'Jitter factor must be non-negative');
+        assert(this._initialTime > 0, 'Initial delay must be positive');
+        assert(this._maxTime > 0, 'Delay upper bound must be positive');
+        assert(this._growFactor >= 0, 'Ratio must be non-negative');
+        assert(this._jitterFactor >= 0, 'Jitter factor must be non-negative');
 
         this.reset();
     }

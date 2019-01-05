@@ -65,7 +65,6 @@ describe('ExponentialTime', () => {
         expect(exponentialTime.getIncrementCount()).toEqual(2);
     });
 
-
     it('calculates next time and returns previous time', () => {
         const exponentialTime = new ExponentialTime(INITIAL_TIME, MAX_TIME);
 
