@@ -139,6 +139,10 @@ export interface ISimpleWebRequestOptions {
     // Maximum executing requests allowed.  Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
 
+    // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
+    // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
+    HungRequestCleanupIntervaMs: number;
+
     // Use this to shim calls to setTimeout/clearTimeout with any other service/local function you want.
     setTimeout: (callback: () => void, timeoutMs?: number) => number;
     clearTimeout: (id: number) => void;
@@ -146,6 +150,7 @@ export interface ISimpleWebRequestOptions {
 
 export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
+    HungRequestCleanupIntervaMs: 10000,
 
     setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
     clearTimeout: (id: number) => window.clearTimeout(id)
@@ -180,7 +185,6 @@ let blockedList: SimpleWebRequestBase[] = [];
 let executingList: SimpleWebRequestBase[] = [];
 
 let hungRequestCleanupTimer: number | undefined;
-const hungRequestCleanupInterval = 30000;
 
 // Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
@@ -244,7 +248,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         // Schedule a cleanup timer if needed
         if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
             hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
-                hungRequestCleanupInterval);
+                SimpleWebRequestOptions.HungRequestCleanupIntervaMs);
         } else if (executingList.length === 0 && hungRequestCleanupTimer) {
             SimpleWebRequestOptions.clearTimeout(hungRequestCleanupTimer);
             hungRequestCleanupTimer = undefined;
@@ -255,8 +259,6 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         hungRequestCleanupTimer = undefined;
         executingList.filter(request => {
             if (request._xhr && request._xhr.readyState === 4) {
-                // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
-                // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
                 console.warn('SimpleWebRequests found a completed XHR that hasn\'t invoked it\'s callback functions, manually responding');
                 return true;
             }
