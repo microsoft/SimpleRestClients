@@ -12,15 +12,18 @@ import * as SyncTasks from 'synctasks';
 
 import { ExponentialTime } from './ExponentialTime';
 
-export interface Headers {
-    [header: string]: string;
+interface Dictionary<T> {
+    [key: string]: T;
 }
+
+export interface Headers extends Dictionary<string> {}
+export interface Params extends Dictionary<any> {}
 
 export interface WebTransportResponseBase {
     url: string;
     method: string;
     statusCode: number;
-    statusText: string|undefined;
+    statusText: string | undefined;
     headers: Headers;
 }
 
@@ -94,7 +97,7 @@ export interface XMLHttpRequestProgressEvent extends ProgressEvent {
     totalSize: number;
 }
 
-export type SendDataType = Object | string | NativeFileData;
+export type SendDataType = Params | string | NativeFileData;
 
 export interface WebRequestOptions {
     withCredentials?: boolean;
@@ -413,7 +416,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         const nextHeaders = this.getRequestHeaders();
         // check/process headers
-        let headersCheck: _.Dictionary<boolean> = {};
+        let headersCheck: Dictionary<boolean> = {};
         _.forEach(nextHeaders, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
@@ -470,7 +473,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         } else if (isFormContentType(contentType)) {
             if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
+                const params = _.map(sendData as Params, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
             }
@@ -478,7 +481,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             if (_.isObject(sendData)) {
                 // Note: This only works for IE10 and above.
                 body = new FormData();
-                _.forEach(sendData as _.Dictionary<any>, (val, key) => {
+                _.forEach(sendData as Params, (val, key) => {
                     (body as FormData).append(key, val);
                 });
             } else {
