@@ -179,6 +179,9 @@ let blockedList: SimpleWebRequestBase[] = [];
 // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
 let executingList: SimpleWebRequestBase[] = [];
 
+let hungReqeustCleanupTimer: number | undefined;
+const hungRequestCleanupInterval = 30000;
+
 // Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
 let timeoutSupportStatus = FeatureSupportStatus.Unknown;
@@ -225,6 +228,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }).then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
+                    SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
                     req._fire();
                 } else {
                     req._enqueue();
@@ -234,6 +238,35 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 req._respond('_blockRequestUntil rejected: ' + err);
             });
         }
+    }
+
+    private static _scheduleHungRequestCleanupIfNeeded() {
+        // Schedule a cleanup timer if needed
+        if (executingList.length > 0 && hungReqeustCleanupTimer === undefined) {
+            hungReqeustCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
+                hungRequestCleanupInterval);
+        } else if (executingList.length === 0 && hungReqeustCleanupTimer) {
+            SimpleWebRequestOptions.clearTimeout(hungReqeustCleanupTimer);
+            hungReqeustCleanupTimer = undefined;
+        }
+    }
+
+    private static _hungRequestCleanupTimerCallback = () => {
+        hungReqeustCleanupTimer = undefined;
+        executingList.filter(request => {
+            if (request._xhr && request._xhr.readyState === 4) {
+                // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
+                // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
+                console.warn('SimpleWebRequests found a completed XHR that hasn\'t invoked it\'s callback functions, manually responding');
+                return true;
+            }
+            return false;
+        }).forEach(request => {
+            // We need to respond outside of the initial iteration across the array since _respond mutates exeutingList
+            request._respond();
+        });
+
+        SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
     }
 
     protected _removeFromQueue(): void {
