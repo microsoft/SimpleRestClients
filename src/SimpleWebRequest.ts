@@ -407,7 +407,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         }
 
-        this._setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
+        SimpleWebRequest._setRequestHeader(this._xhr, this._xhrRequestHeaders, 'Accept', SimpleWebRequestBase.mapContentType(acceptType));
 
         this._xhr.withCredentials = !!this._options.withCredentials;
 
@@ -432,12 +432,12 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
 
             headersCheck[headerLower] = true;
-            this._setRequestHeader(key, val);
+            SimpleWebRequest._setRequestHeader(this._xhr!!!, this._xhrRequestHeaders!!!, key, val);
         });
 
         if (this._options.sendData) {
             const contentType = SimpleWebRequestBase.mapContentType(this._options.contentType || 'json');
-            this._setRequestHeader('Content-Type', contentType);
+            SimpleWebRequest._setRequestHeader(this._xhr, this._xhrRequestHeaders, 'Content-Type', contentType);
 
             const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
 
@@ -447,9 +447,9 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
     }
 
-    private _setRequestHeader(key: string, val: string): void {
-        this._xhr!!!.setRequestHeader(key, val);
-        this._xhrRequestHeaders!!![key] = val;
+    private static _setRequestHeader(xhr: XMLHttpRequest, xhrRequestHeaders: Headers, key: string, val: string): void {
+        xhr.setRequestHeader(key, val);
+        xhrRequestHeaders[key] = val;
     }
 
     static mapContentType(contentType: string): string {
@@ -815,12 +815,12 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
                 // Clear the XHR since we technically just haven't started again yet...
                 if (this._xhr) {
-                    this._xhr.onabort = null!!!;
-                    this._xhr.onerror = null!!!;
-                    this._xhr.onload = null!!!;
-                    this._xhr.onprogress = null!!!;
-                    this._xhr.onreadystatechange = null!!!;
-                    this._xhr.ontimeout = null!!!;
+                    this._xhr.onabort = null;
+                    this._xhr.onerror = null;
+                    this._xhr.onload = null;
+                    this._xhr.onprogress = null;
+                    this._xhr.onreadystatechange = null;
+                    this._xhr.ontimeout = null;
                     this._xhr = undefined;
 
                     this._xhrRequestHeaders = undefined;
