@@ -179,7 +179,7 @@ let blockedList: SimpleWebRequestBase[] = [];
 // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
 let executingList: SimpleWebRequestBase[] = [];
 
-let hungReqeustCleanupTimer: number | undefined;
+let hungRequestCleanupTimer: number | undefined;
 const hungRequestCleanupInterval = 30000;
 
 // Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
@@ -242,17 +242,17 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     private static _scheduleHungRequestCleanupIfNeeded() {
         // Schedule a cleanup timer if needed
-        if (executingList.length > 0 && hungReqeustCleanupTimer === undefined) {
-            hungReqeustCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
+        if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
+            hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
                 hungRequestCleanupInterval);
-        } else if (executingList.length === 0 && hungReqeustCleanupTimer) {
-            SimpleWebRequestOptions.clearTimeout(hungReqeustCleanupTimer);
-            hungReqeustCleanupTimer = undefined;
+        } else if (executingList.length === 0 && hungRequestCleanupTimer) {
+            SimpleWebRequestOptions.clearTimeout(hungRequestCleanupTimer);
+            hungRequestCleanupTimer = undefined;
         }
     }
 
     private static _hungRequestCleanupTimerCallback = () => {
-        hungReqeustCleanupTimer = undefined;
+        hungRequestCleanupTimer = undefined;
         executingList.filter(request => {
             if (request._xhr && request._xhr.readyState === 4) {
                 // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
