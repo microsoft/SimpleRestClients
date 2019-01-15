@@ -141,7 +141,7 @@ export interface ISimpleWebRequestOptions {
 
     // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
     // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
-    HungRequestCleanupIntervaMs: number;
+    HungRequestCleanupIntervalMs: number;
 
     // Use this to shim calls to setTimeout/clearTimeout with any other service/local function you want.
     setTimeout: (callback: () => void, timeoutMs?: number) => number;
@@ -150,7 +150,7 @@ export interface ISimpleWebRequestOptions {
 
 export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
-    HungRequestCleanupIntervaMs: 10000,
+    HungRequestCleanupIntervalMs: 10000,
 
     setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
     clearTimeout: (id: number) => window.clearTimeout(id)
@@ -248,7 +248,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         // Schedule a cleanup timer if needed
         if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
             hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
-                SimpleWebRequestOptions.HungRequestCleanupIntervaMs);
+                SimpleWebRequestOptions.HungRequestCleanupIntervalMs);
         } else if (executingList.length === 0 && hungRequestCleanupTimer) {
             SimpleWebRequestOptions.clearTimeout(hungRequestCleanupTimer);
             hungRequestCleanupTimer = undefined;
