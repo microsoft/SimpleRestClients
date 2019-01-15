@@ -142,6 +142,10 @@ export interface ISimpleWebRequestOptions {
     // Maximum executing requests allowed.  Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
 
+    // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
+    // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
+    HungRequestCleanupIntervalMs: number;
+
     // Use this to shim calls to setTimeout/clearTimeout with any other service/local function you want.
     setTimeout: (callback: () => void, timeoutMs?: number) => number;
     clearTimeout: (id: number) => void;
@@ -149,6 +153,7 @@ export interface ISimpleWebRequestOptions {
 
 export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
+    HungRequestCleanupIntervalMs: 10000,
 
     setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
     clearTimeout: (id: number) => window.clearTimeout(id)
@@ -181,6 +186,8 @@ let blockedList: SimpleWebRequestBase[] = [];
 
 // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
 let executingList: SimpleWebRequestBase[] = [];
+
+let hungRequestCleanupTimer: number | undefined;
 
 // Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
@@ -228,6 +235,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }).then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
+                    SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
                     req._fire();
                 } else {
                     req._enqueue();
@@ -237,6 +245,33 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 req._respond('_blockRequestUntil rejected: ' + err);
             });
         }
+    }
+
+    private static _scheduleHungRequestCleanupIfNeeded() {
+        // Schedule a cleanup timer if needed
+        if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
+            hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
+                SimpleWebRequestOptions.HungRequestCleanupIntervalMs);
+        } else if (executingList.length === 0 && hungRequestCleanupTimer) {
+            SimpleWebRequestOptions.clearTimeout(hungRequestCleanupTimer);
+            hungRequestCleanupTimer = undefined;
+        }
+    }
+
+    private static _hungRequestCleanupTimerCallback = () => {
+        hungRequestCleanupTimer = undefined;
+        executingList.filter(request => {
+            if (request._xhr && request._xhr.readyState === 4) {
+                console.warn('SimpleWebRequests found a completed XHR that hasn\'t invoked it\'s callback functions, manually responding');
+                return true;
+            }
+            return false;
+        }).forEach(request => {
+            // We need to respond outside of the initial iteration across the array since _respond mutates exeutingList
+            request._respond();
+        });
+
+        SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
     }
 
     protected _removeFromQueue(): void {
