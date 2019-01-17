@@ -12,15 +12,18 @@ import * as SyncTasks from 'synctasks';
 import { assert } from './utils';
 import { ExponentialTime } from './ExponentialTime';
 
-export interface Headers {
-    [header: string]: string;
+interface Dictionary<T> {
+    [key: string]: T;
 }
+
+export interface Headers extends Dictionary<string> {}
+export interface Params extends Dictionary<any> {}
 
 export interface WebTransportResponseBase {
     url: string;
     method: string;
     statusCode: number;
-    statusText: string|undefined;
+    statusText: string | undefined;
     headers: Headers;
 }
 
@@ -94,7 +97,7 @@ export interface XMLHttpRequestProgressEvent extends ProgressEvent {
     totalSize: number;
 }
 
-export type SendDataType = Object | string | NativeFileData;
+export type SendDataType = Params | string | NativeFileData;
 
 export interface WebRequestOptions {
     withCredentials?: boolean;
@@ -139,6 +142,10 @@ export interface ISimpleWebRequestOptions {
     // Maximum executing requests allowed.  Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
 
+    // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
+    // CORS preflight) Directly call the respond function to kick these requests and unblock the reserved slot in our queues
+    HungRequestCleanupIntervalMs: number;
+
     // Use this to shim calls to setTimeout/clearTimeout with any other service/local function you want.
     setTimeout: (callback: () => void, timeoutMs?: number) => number;
     clearTimeout: (id: number) => void;
@@ -146,6 +153,7 @@ export interface ISimpleWebRequestOptions {
 
 export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
+    HungRequestCleanupIntervalMs: 10000,
 
     setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
     clearTimeout: (id: number) => window.clearTimeout(id)
@@ -178,6 +186,8 @@ let blockedList: SimpleWebRequestBase[] = [];
 
 // List of executing (non-finished) requests -- only to keep track of number of requests to compare to the max
 let executingList: SimpleWebRequestBase[] = [];
+
+let hungRequestCleanupTimer: number | undefined;
 
 // Feature flag checkers for whether the current environment supports various types of XMLHttpRequest features
 let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
@@ -225,6 +235,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }).then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
+                    SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
                     req._fire();
                 } else {
                     req._enqueue();
@@ -234,6 +245,33 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 req._respond('_blockRequestUntil rejected: ' + err);
             });
         }
+    }
+
+    private static _scheduleHungRequestCleanupIfNeeded() {
+        // Schedule a cleanup timer if needed
+        if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
+            hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
+                SimpleWebRequestOptions.HungRequestCleanupIntervalMs);
+        } else if (executingList.length === 0 && hungRequestCleanupTimer) {
+            SimpleWebRequestOptions.clearTimeout(hungRequestCleanupTimer);
+            hungRequestCleanupTimer = undefined;
+        }
+    }
+
+    private static _hungRequestCleanupTimerCallback = () => {
+        hungRequestCleanupTimer = undefined;
+        executingList.filter(request => {
+            if (request._xhr && request._xhr.readyState === 4) {
+                console.warn('SimpleWebRequests found a completed XHR that hasn\'t invoked it\'s callback functions, manually responding');
+                return true;
+            }
+            return false;
+        }).forEach(request => {
+            // We need to respond outside of the initial iteration across the array since _respond mutates exeutingList
+            request._respond();
+        });
+
+        SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
     }
 
     protected _removeFromQueue(): void {
@@ -407,13 +445,13 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         }
 
-        this._setRequestHeader('Accept', SimpleWebRequestBase.mapContentType(acceptType));
+        SimpleWebRequest._setRequestHeader(this._xhr, this._xhrRequestHeaders, 'Accept', SimpleWebRequestBase.mapContentType(acceptType));
 
         this._xhr.withCredentials = !!this._options.withCredentials;
 
         const nextHeaders = this.getRequestHeaders();
         // check/process headers
-        let headersCheck: _.Dictionary<boolean> = {};
+        let headersCheck: Dictionary<boolean> = {};
         _.forEach(nextHeaders, (val, key) => {
             const headerLower = key.toLowerCase();
             if (headerLower === 'content-type') {
@@ -432,12 +470,12 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
 
             headersCheck[headerLower] = true;
-            this._setRequestHeader(key, val);
+            SimpleWebRequest._setRequestHeader(this._xhr!!!, this._xhrRequestHeaders!!!, key, val);
         });
 
         if (this._options.sendData) {
             const contentType = SimpleWebRequestBase.mapContentType(this._options.contentType || 'json');
-            this._setRequestHeader('Content-Type', contentType);
+            SimpleWebRequest._setRequestHeader(this._xhr, this._xhrRequestHeaders, 'Content-Type', contentType);
 
             const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
 
@@ -447,9 +485,9 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
     }
 
-    private _setRequestHeader(key: string, val: string): void {
-        this._xhr!!!.setRequestHeader(key, val);
-        this._xhrRequestHeaders!!![key] = val;
+    private static _setRequestHeader(xhr: XMLHttpRequest, xhrRequestHeaders: Headers, key: string, val: string): void {
+        xhr.setRequestHeader(key, val);
+        xhrRequestHeaders[key] = val;
     }
 
     static mapContentType(contentType: string): string {
@@ -470,7 +508,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         } else if (isFormContentType(contentType)) {
             if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as _.Dictionary<any>, (val, key) =>
+                const params = _.map(sendData as Params, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
                 body = params.join('&');
             }
@@ -478,7 +516,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             if (_.isObject(sendData)) {
                 // Note: This only works for IE10 and above.
                 body = new FormData();
-                _.forEach(sendData as _.Dictionary<any>, (val, key) => {
+                _.forEach(sendData as Params, (val, key) => {
                     (body as FormData).append(key, val);
                 });
             } else {
@@ -815,12 +853,12 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
                 // Clear the XHR since we technically just haven't started again yet...
                 if (this._xhr) {
-                    this._xhr.onabort = null!!!;
-                    this._xhr.onerror = null!!!;
-                    this._xhr.onload = null!!!;
-                    this._xhr.onprogress = null!!!;
-                    this._xhr.onreadystatechange = null!!!;
-                    this._xhr.ontimeout = null!!!;
+                    this._xhr.onabort = null;
+                    this._xhr.onerror = null;
+                    this._xhr.onload = null;
+                    this._xhr.onprogress = null;
+                    this._xhr.onreadystatechange = null;
+                    this._xhr.ontimeout = null;
                     this._xhr = undefined;
 
                     this._xhrRequestHeaders = undefined;
