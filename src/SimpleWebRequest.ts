@@ -506,16 +506,15 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     }
 
     static mapBody(sendData: SendDataType, contentType: string): SendDataType {
-        let body = sendData;
         if (isJsonContentType(contentType)) {
             if (!_.isString(sendData)) {
-                body = JSON.stringify(sendData);
+                return JSON.stringify(sendData);
             }
         } else if (isFormContentType(contentType)) {
             if (!_.isString(sendData) && _.isObject(sendData)) {
                 const params = _.map(sendData as Params, (val, key) =>
                     encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
-                body = params.join('&');
+                return params.join('&');
             }
         } else if (isFormDataContentType(contentType)) {
             if (_.isObject(sendData)) {
@@ -532,7 +531,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             }
         }
 
-        return body;
+        return sendData;
     }
 
     setUrl(newUrl: string): void {
