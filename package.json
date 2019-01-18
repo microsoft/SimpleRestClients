@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@types/lodash": "^4.14.110",
-    "assert": "^1.4.1",
     "lodash": "^4.17.0",
     "synctasks": "^0.3.3"
   },
@@ -22,7 +21,6 @@
     "@types/faker": "4.1.4",
     "@types/jasmine": "3.3.5",
     "@types/jasmine-ajax": "3.1.39",
-    "@types/node": "10.12.18",
     "faker": "4.1.0",
     "fork-ts-checker-webpack-plugin": "0.5.2",
     "jasmine": "3.3.1",
@@ -39,7 +37,7 @@
     "ts-loader": "5.3.3",
     "tslint": "5.12.1",
     "tslint-microsoft-contrib": "6.0.0",
-    "typescript": "3.2.2",
+    "typescript": "3.2.4",
     "webpack": "4.28.4"
   },
   "repository": {
