@@ -3,8 +3,8 @@
  * Copyright: Microsoft 2019
  */
 
-export const assert = (cond: any, message?: string | undefined) => {
+export const assert = (cond: boolean, message: string) => {
     if (!cond) {
-        throw new Error(`${ message || 'Assertion Failed' }`);
+        throw new Error(message);
     }
 };
