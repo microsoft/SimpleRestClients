@@ -194,9 +194,9 @@ let onLoadErrorSupportStatus = FeatureSupportStatus.Unknown;
 let timeoutSupportStatus = FeatureSupportStatus.Unknown;
 
 export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = WebRequestOptions> {
-    protected _xhr: XMLHttpRequest|undefined;
-    protected _xhrRequestHeaders: Headers|undefined;
-    protected _requestTimeoutTimer: number|undefined;
+    protected _xhr: XMLHttpRequest | undefined;
+    protected _xhrRequestHeaders: Headers | undefined;
+    protected _requestTimeoutTimer: number | undefined;
     protected _options: TOptions;
 
     protected _aborted = false;
@@ -452,25 +452,31 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         const nextHeaders = this.getRequestHeaders();
         // check/process headers
         let headersCheck: Dictionary<boolean> = {};
-        _.forEach(nextHeaders, (val, key) => {
-            const headerLower = key.toLowerCase();
-            if (headerLower === 'content-type') {
-                this._assertAndClean(false, 'Don\'t set Content-Type with options.headers -- use it with the options.contentType property');
-                return;
-            }
-            if (headerLower === 'accept') {
-                this._assertAndClean(false, 'Don\'t set Accept with options.headers -- use it with the options.acceptType property');
-                return;
-            }
-            this._assertAndClean(!headersCheck[headerLower], 'Setting duplicate header key: ' + headersCheck[headerLower] + ' and ' + key);
 
-            if (val === undefined || val === null) {
-                console.warn('Tried to set header "' + key + '" on request with "' + val + '" value, header will be dropped');
+        Object.keys(nextHeaders).forEach(key => {
+            const value = nextHeaders[key];
+            const headerLower = key.toLowerCase();
+
+            if (headerLower === 'content-type') {
+                this._assertAndClean(false, `Don't set Content-Type with options.headers -- use it with the options.contentType property`);
+                return;
+            }
+
+            if (headerLower === 'accept') {
+                this._assertAndClean(false, `Don't set Accept with options.headers -- use it with the options.acceptType property`);
+                return;
+            }
+
+            this._assertAndClean(!headersCheck[headerLower], `Setting duplicate header key: ${ headersCheck[headerLower] } and ${ key }`);
+
+            if (value === undefined || value === null) {
+                console.warn(`Tried to set header "${ key }" on request with "${ value }" value, header will be dropped`);
                 return;
             }
 
             headersCheck[headerLower] = true;
-            SimpleWebRequest._setRequestHeader(this._xhr!!!, this._xhrRequestHeaders!!!, key, val);
+
+            SimpleWebRequest._setRequestHeader(this._xhr!!!, this._xhrRequestHeaders!!!, key, value);
         });
 
         if (this._options.sendData) {
@@ -478,7 +484,6 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             SimpleWebRequest._setRequestHeader(this._xhr, this._xhrRequestHeaders, 'Content-Type', contentType);
 
             const sendData = SimpleWebRequestBase.mapBody(this._options.sendData, contentType);
-
             this._xhr.send(sendData as BodyInit);
         } else {
             this._xhr.send();
@@ -515,10 +520,13 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         } else if (isFormDataContentType(contentType)) {
             if (_.isObject(sendData)) {
                 // Note: This only works for IE10 and above.
-                body = new FormData();
-                _.forEach(sendData as Params, (val, key) => {
-                    (body as FormData).append(key, val);
-                });
+                const formData = new FormData();
+                const params = sendData as Params;
+
+                Object.keys(params)
+                    .forEach(param => formData.append(param, params[param]));
+
+                return formData;
             } else {
                 assert.ok(false, 'contentType multipart/form-data must include an object as sendData');
             }
