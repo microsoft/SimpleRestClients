@@ -105,6 +105,7 @@ export interface WebRequestOptions {
     priority?: WebRequestPriority;
     timeout?: number;
     acceptType?: string;
+    customResponseType?: XMLHttpRequestResponseType;
     contentType?: string;
     sendData?: SendDataType;
     /* Deprecated: use overrideGetHeaders */ headers?: Headers;
@@ -426,7 +427,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
 
         const acceptType = this._options.acceptType || 'json';
-        const responseType = SimpleWebRequestBase._getResponseType(acceptType);
+        const responseType = this._options.customResponseType || SimpleWebRequestBase._getResponseType(acceptType);
 
         const responseTypeError = _.attempt(() => {
             this._xhr!!!.responseType = responseType;
