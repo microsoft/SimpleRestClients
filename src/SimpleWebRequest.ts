@@ -84,7 +84,7 @@ export interface NativeBlobFileData {
 }
 
 export interface NativeFileData {
-    file: NativeBlobFileData|File;
+    file: NativeBlobFileData | File;
 }
 
 export interface XMLHttpRequestProgressEvent extends ProgressEvent {
@@ -123,16 +123,16 @@ export interface WebRequestOptions {
     augmentErrorResponse?: (resp: WebErrorResponse) => void;
 }
 
-function isJsonContentType(ct: string) {
-    return ct && ct.indexOf('application/json') === 0;
+function isJsonContentType(ct: string): boolean {
+    return !!ct && ct.indexOf('application/json') === 0;
 }
 
-function isFormContentType(ct: string) {
-    return ct && ct.indexOf('application/x-www-form-urlencoded') === 0;
+function isFormContentType(ct: string): boolean {
+    return !!ct && ct.indexOf('application/x-www-form-urlencoded') === 0;
 }
 
-function isFormDataContentType(ct: string) {
-    return ct && ct.indexOf('multipart/form-data') === 0;
+function isFormDataContentType(ct: string): boolean {
+    return !!ct && ct.indexOf('multipart/form-data') === 0;
 }
 
 export const DefaultOptions: WebRequestOptions = {
@@ -140,7 +140,7 @@ export const DefaultOptions: WebRequestOptions = {
 };
 
 export interface ISimpleWebRequestOptions {
-    // Maximum executing requests allowed.  Other requests will be queued until free spots become available.
+    // Maximum executing requests allowed. Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
 
     // We've seen cases where requests have reached completion but callbacks haven't been called (typically during failed
@@ -160,7 +160,7 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     clearTimeout: (id: number) => window.clearTimeout(id)
 };
 
-export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse) {
+export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse): ErrorHandlingType {
     if (errResp.canceled || !errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
         // Fail canceled/0/4xx/5xx requests immediately.
         // These are permenent failures, and shouldn't have retry logic applied to them.
@@ -210,13 +210,13 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     // 2. Safari seems to have a bug where sometimes it double-resolves happily-completed xmlhttprequests
     protected _finishHandled = false;
 
-    protected _retryTimer: number|undefined;
+    protected _retryTimer: number | undefined;
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
     constructor(protected _action: string,
-            protected _url: string, options: TOptions,
-            protected _getHeaders?: () => Headers,
-            protected _blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
+                protected _url: string, options: TOptions,
+                protected _getHeaders?: () => Headers,
+                protected _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -226,7 +226,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     abstract abort(): void;
 
-    protected static checkQueueProcessing() {
+    protected static checkQueueProcessing(): void {
         while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
             const req = requestQueue.shift()!!!;
             blockedList.push(req);
@@ -248,7 +248,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
     }
 
-    private static _scheduleHungRequestCleanupIfNeeded() {
+    private static _scheduleHungRequestCleanupIfNeeded(): void {
         // Schedule a cleanup timer if needed
         if (executingList.length > 0 && hungRequestCleanupTimer === undefined) {
             hungRequestCleanupTimer = SimpleWebRequestOptions.setTimeout(this._hungRequestCleanupTimerCallback,
@@ -273,7 +273,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         });
 
         SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
-    }
+    };
 
     protected _removeFromQueue(): void {
         // Only pull from request queue and executing queue here - pulling from the blocked queue can result in requests
@@ -310,7 +310,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         if (this._options.timeout) {
             const timeoutSupported = timeoutSupportStatus;
-             // Use manual timer if we don't know about timeout support
+            // Use manual timer if we don't know about timeout support
             if (timeoutSupported !== FeatureSupportStatus.Supported) {
                 this._assertAndClean(!this._requestTimeoutTimer, 'Double-fired requestTimeoutTimer');
                 this._requestTimeoutTimer = SimpleWebRequestOptions.setTimeout(() => {
@@ -347,7 +347,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 // Set global status to detecting, leave local state so we can set a timer on finish
                 onLoadErrorSupportStatus = FeatureSupportStatus.Detecting;
             }
-            this._xhr.onreadystatechange = (e) => {
+            this._xhr.onreadystatechange = () => {
                 if (!this._xhr) {
                     return;
                 }
@@ -380,7 +380,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             };
         } else if (this._options.streamingDownloadProgress) {
             // If we support onload and such, but have a streaming download handler, still trap the oRSC.
-            this._xhr.onreadystatechange = (e) => {
+            this._xhr.onreadystatechange = () => {
                 if (!this._xhr) {
                     return;
                 }
@@ -414,11 +414,10 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             };
         }
 
-        this._xhr.onabort = (e) => {
+        this._xhr.onabort = () => {
             // If the browser cancels us (page navigation or whatever), it sometimes calls both the readystatechange and this,
             // so make sure we know that this is an abort.
             this._aborted = true;
-
             this._respond('Aborted');
         };
 
@@ -663,8 +662,11 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
     private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
 
-    constructor(action: string, url: string, options: TOptions, getHeaders?: () => Headers,
-            blockRequestUntil?: () => SyncTasks.Promise<void>|undefined) {
+    constructor(action: string,
+                url: string,
+                options: TOptions,
+                getHeaders?: () => Headers,
+                blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
         super(action, url, options, getHeaders, blockRequestUntil);
     }
 
@@ -717,7 +719,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         return this._deferred.promise();
     }
 
-    protected _respond(errorStatusText?: string) {
+    protected _respond(errorStatusText?: string): void {
         if (this._finishHandled) {
             // Aborted web requests often double-finish due to odd browser behavior, but non-aborted requests shouldn't...
             // Unfortunately, this assertion fires frequently in the Safari browser, presumably due to a non-standard
@@ -813,7 +815,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
-                body: body as TBody,
+                body: body as TBody
             };
 
             this._deferred.resolve(resp);
@@ -828,7 +830,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 headers: headers,
                 body: body,
                 canceled: this._aborted,
-                timedOut: this._timedOut,
+                timedOut: this._timedOut
             };
 
             if (this._options.augmentErrorResponse) {

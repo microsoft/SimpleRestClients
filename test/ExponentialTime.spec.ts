@@ -25,7 +25,7 @@ const calculateExponentialTime = (currentTime: number, growFactor: number, jitte
 
 const calculateDefaultExponentialTime = (initialTime: number, jitterFactor: number): number => (
     Math.round(initialTime * (1 + RANDOM_VALUE * jitterFactor))
-)
+);
 
 describe('ExponentialTime', () => {
     beforeAll(() => {
