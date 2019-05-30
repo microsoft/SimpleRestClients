@@ -1,6 +1,6 @@
 import * as faker from 'faker';
 import * as SyncTasks from 'synctasks';
-import { SimpleWebRequest, SimpleWebRequestOptions, WebErrorResponse, WebRequestPriority } from '../src/SimpleWebRequest';
+import { ErrorHandlingType, SimpleWebRequest, SimpleWebRequestOptions, WebErrorResponse, WebRequestPriority } from '../src/SimpleWebRequest';
 import { DETAILED_RESPONSE } from './helpers';
 
 describe('SimpleWebRequest', () => {
@@ -278,6 +278,57 @@ describe('SimpleWebRequest', () => {
             blockDefer.resolve(void 0);
             expect(jasmine.Ajax.requests.count()).toBe(0);
 
+        });
+    });
+
+    describe('retries', () => {
+        beforeEach(() => {
+            jasmine.clock().install();
+        });
+
+        afterEach(() => {
+            jasmine.clock().uninstall();
+        });
+
+        it('fails the request with "timedOut: true" if it times out without retries', done => {
+            const url = faker.internet.url();
+            const method = 'GET';
+            new SimpleWebRequest<string>(url, method, { timeout: 10, customErrorHandler: () => ErrorHandlingType.DoNotRetry })
+                .start()
+                .then(() => {
+                    expect(false).toBeTruthy();
+                    done();
+                })
+                .catch(errResp => {
+                    expect(errResp.timedOut).toBeTruthy();
+                    done();
+                }
+            );
+
+            jasmine.clock().tick(10);
+        });
+
+        it('timedOut flag is reset on retry', done => {
+            const url = faker.internet.url();
+            const method = 'GET';
+            const requestPromise = new SimpleWebRequest<string>(url, method, {
+                timeout: 10,
+                retries: 1,
+                customErrorHandler: () => ErrorHandlingType.RetryCountedWithBackoff
+            }).start();
+            requestPromise.then(() => {
+                expect(false).toBeTruthy();
+                done();
+            })
+            .catch(errResp => {
+                expect(errResp.canceled).toBeTruthy();
+                expect(errResp.timedOut).toBeFalsy();
+                done();
+            });
+
+            // first try will time out, the second one will be aborted
+            jasmine.clock().tick(10);
+            requestPromise.cancel();
         });
     });
 

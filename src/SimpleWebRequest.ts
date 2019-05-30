@@ -857,6 +857,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 }
 
                 this._aborted = false;
+                this._timedOut = false;
                 this._finishHandled = false;
 
                 // Clear the XHR since we technically just haven't started again yet...
