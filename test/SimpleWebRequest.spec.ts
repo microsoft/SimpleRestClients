@@ -42,7 +42,7 @@ describe('SimpleWebRequest', () => {
     it('sends json POST request', () => {
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text(),
+            text: faker.lorem.text()
         };
         const requestOptions = { sendData };
         const statusCode = 201;
@@ -87,7 +87,7 @@ describe('SimpleWebRequest', () => {
         spyOn(console, 'error');
 
         const headers = {
-            'Accept': 'application/xml',
+            'Accept': 'application/xml'
         };
         const method = 'GET';
         const url = faker.internet.url();
@@ -102,7 +102,7 @@ describe('SimpleWebRequest', () => {
         spyOn(console, 'error');
 
         const headers = {
-            'Content-Type': 'application/xml',
+            'Content-Type': 'application/xml'
         };
         const method = 'GET';
         const url = faker.internet.url();
@@ -189,7 +189,9 @@ describe('SimpleWebRequest', () => {
             const onSuccessLow = jasmine.createSpy('onSuccessLow');
             const onSuccessCritical = jasmine.createSpy('onSuccessCritical');
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }, undefined, () => blockDefer.promise()).start().then(onSuccessHigh);
+            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }, undefined, () => blockDefer.promise())
+                .start()
+                .then(onSuccessHigh);
             jasmine.clock().tick(10);
             new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Low }).start().then(onSuccessLow);
             jasmine.clock().tick(10);
@@ -223,7 +225,9 @@ describe('SimpleWebRequest', () => {
             const onSuccessHigh2 = jasmine.createSpy('onSuccessHigh2');
             const blockSpy = jasmine.createSpy('blockSpy').and.callFake(() => blockDefer.promise());
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, blockSpy).start().then(onSuccessCritical);
+            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, blockSpy)
+                .start()
+                .then(onSuccessCritical);
             jasmine.clock().tick(10);
 
             new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }).start().then(onSuccessHigh);
@@ -257,12 +261,13 @@ describe('SimpleWebRequest', () => {
             const method = 'GET';
             const blockDefer = SyncTasks.Defer<void>();
             const errorString = 'Terrible error';
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise()).start()
-            .then(() => fail(), (err: WebErrorResponse) => {
-                expect(err.statusCode).toBe(0);
-                expect(err.statusText).toBe('_blockRequestUntil rejected: ' + errorString);
-                done();
-            });
+            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise())
+                .start()
+                .then(() => fail(), (err: WebErrorResponse) => {
+                    expect(err.statusCode).toBe(0);
+                    expect(err.statusText).toBe('_blockRequestUntil rejected: ' + errorString);
+                    done();
+                });
 
             blockDefer.reject(errorString);
         });
@@ -272,8 +277,9 @@ describe('SimpleWebRequest', () => {
             const url = faker.internet.url();
             const method = 'GET';
             const blockDefer = SyncTasks.Defer<void>();
-            const requestPromise = new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise()).start();
-            requestPromise.cancel();
+            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise())
+                .start()
+                .cancel();
 
             blockDefer.resolve(void 0);
             expect(jasmine.Ajax.requests.count()).toBe(0);

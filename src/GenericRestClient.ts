@@ -10,7 +10,7 @@ import * as SyncTasks from 'synctasks';
 import { defaults, isString } from 'lodash';
 import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
-export type HttpAction = 'POST'|'GET'|'PUT'|'DELETE'|'PATCH';
+export type HttpAction = 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH';
 
 export interface ApiCallOptions extends WebRequestOptions {
     backendUrl?: string;
@@ -36,21 +36,23 @@ export class GenericRestClient {
     protected _defaultOptions: ApiCallOptions = {
         excludeEndpointUrl: false,
         withCredentials: false,
-        retries: 0,
+        retries: 0
     };
 
     constructor(endpointUrl: string) {
         this._endpointUrl = endpointUrl;
     }
 
-    protected _performApiCall<T>(apiPath: string, action: HttpAction, objToPost: any, givenOptions?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    protected _performApiCall<T>(apiPath: string,
+                                 action: HttpAction,
+                                 objToPost: any,
+                                 givenOptions?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
         let options = defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
         if (objToPost) {
             options.sendData = objToPost;
         }
-        
+
         if (options.eTag) {
             if (!options.augmentHeaders) {
                 options.augmentHeaders = {};
@@ -64,8 +66,13 @@ export class GenericRestClient {
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
 
-        return new SimpleWebRequest<T, ApiCallOptions>(action, finalUrl, options, () => this._getHeaders(options), 
-                () => this._blockRequestUntil(options))
+        return new SimpleWebRequest<T, ApiCallOptions>(
+            action,
+            finalUrl,
+            options,
+            () => this._getHeaders(options),
+            () => this._blockRequestUntil(options)
+        )
             .start()
             .then(response => {
                 this._processSuccessResponse<T>(response);
@@ -80,7 +87,7 @@ export class GenericRestClient {
 
     // Override (but make sure to call super and chain appropriately) this function if you want to add more blocking criteria.
     // Also, this might be called multiple times to check if the conditions changed
-    protected _blockRequestUntil(options: ApiCallOptions): SyncTasks.Promise<void>|undefined {
+    protected _blockRequestUntil(options: ApiCallOptions): SyncTasks.Promise<void> | undefined {
         // No-op by default
         return undefined;
     }
@@ -96,8 +103,7 @@ export class GenericRestClient {
             .then(resp => resp.body);
     }
 
-    performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'GET', undefined, options);
     }
 
@@ -107,8 +113,9 @@ export class GenericRestClient {
             .then(resp => resp.body);
     }
 
-    performApiPostDetailed<T>(apiPath: string, objToPost: any, options?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPostDetailed<T>(apiPath: string,
+                              objToPost: any,
+                              options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
@@ -118,8 +125,9 @@ export class GenericRestClient {
             .then(resp => resp.body);
     }
 
-    performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPatchDetailed<T>(apiPath: string,
+                               objToPatch: any,
+                               options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
@@ -129,8 +137,7 @@ export class GenericRestClient {
             .then(resp => resp.body);
     }
 
-    performApiPutDetailed<T>(apiPath: string, objToPut: any, options?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPutDetailed<T>(apiPath: string, objToPut: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'PUT', objToPut, options);
     }
 
@@ -140,8 +147,9 @@ export class GenericRestClient {
             .then(resp => resp.body);
     }
 
-    performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options?: ApiCallOptions)
-            : SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiDeleteDetailed<T>(apiPath: string,
+                                objToDelete: any,
+                                options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'DELETE', objToDelete, options);
     }
 }
