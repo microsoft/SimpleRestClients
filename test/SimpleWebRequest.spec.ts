@@ -1,6 +1,12 @@
 import * as faker from 'faker';
 import * as SyncTasks from 'synctasks';
-import { ErrorHandlingType, SimpleWebRequest, SimpleWebRequestOptions, WebErrorResponse, WebRequestPriority } from '../src/SimpleWebRequest';
+import {
+    ErrorHandlingType,
+    SimpleWebRequest,
+    SimpleWebRequestOptions,
+    WebErrorResponse,
+    WebRequestPriority
+} from '../src/SimpleWebRequest';
 import { DETAILED_RESPONSE } from './helpers';
 
 describe('SimpleWebRequest', () => {
@@ -308,8 +314,7 @@ describe('SimpleWebRequest', () => {
                 .catch(errResp => {
                     expect(errResp.timedOut).toBeTruthy();
                     done();
-                }
-            );
+                });
 
             jasmine.clock().tick(10);
         });
@@ -322,15 +327,17 @@ describe('SimpleWebRequest', () => {
                 retries: 1,
                 customErrorHandler: () => ErrorHandlingType.RetryCountedWithBackoff
             }).start();
-            requestPromise.then(() => {
-                expect(false).toBeTruthy();
-                done();
-            })
-            .catch(errResp => {
-                expect(errResp.canceled).toBeTruthy();
-                expect(errResp.timedOut).toBeFalsy();
-                done();
-            });
+
+            requestPromise
+                .then(() => {
+                    expect(false).toBeTruthy();
+                    done();
+                })
+                .catch(errResp => {
+                    expect(errResp.canceled).toBeTruthy();
+                    expect(errResp.timedOut).toBeFalsy();
+                    done();
+                });
 
             // first try will time out, the second one will be aborted
             jasmine.clock().tick(10);
