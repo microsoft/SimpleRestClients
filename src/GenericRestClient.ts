@@ -36,7 +36,7 @@ export class GenericRestClient {
     protected _defaultOptions: ApiCallOptions = {
         excludeEndpointUrl: false,
         withCredentials: false,
-        retries: 0
+        retries: 0,
     };
 
     constructor(endpointUrl: string) {
@@ -44,9 +44,9 @@ export class GenericRestClient {
     }
 
     protected _performApiCall<T>(apiPath: string,
-                                 action: HttpAction,
-                                 objToPost: any,
-                                 givenOptions?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            action: HttpAction,
+            objToPost: any,
+            givenOptions?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
         let options = defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
         if (objToPost) {
@@ -71,7 +71,7 @@ export class GenericRestClient {
             finalUrl,
             options,
             () => this._getHeaders(options),
-            () => this._blockRequestUntil(options)
+            () => this._blockRequestUntil(options),
         )
             .start()
             .then(response => {
@@ -114,8 +114,8 @@ export class GenericRestClient {
     }
 
     performApiPostDetailed<T>(apiPath: string,
-                              objToPost: any,
-                              options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            objToPost: any,
+            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
@@ -126,8 +126,8 @@ export class GenericRestClient {
     }
 
     performApiPatchDetailed<T>(apiPath: string,
-                               objToPatch: any,
-                               options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            objToPatch: any,
+            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
@@ -148,8 +148,8 @@ export class GenericRestClient {
     }
 
     performApiDeleteDetailed<T>(apiPath: string,
-                                objToDelete: any,
-                                options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            objToDelete: any,
+            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
         return this._performApiCall<T>(apiPath, 'DELETE', objToDelete, options);
     }
 }

@@ -22,9 +22,9 @@ export class ExponentialTime {
      * @param jitterFactor
      */
     constructor(private _initialTime: number,
-                private _maxTime: number,
-                private _growFactor = DEFAULT_TIME_GROW_FACTOR,
-                private _jitterFactor = DEFAULT_TIME_JITTER) {
+            private _maxTime: number,
+            private _growFactor = DEFAULT_TIME_GROW_FACTOR,
+            private _jitterFactor = DEFAULT_TIME_JITTER) {
 
         assert(this._initialTime > 0, 'Initial delay must be positive');
         assert(this._maxTime > 0, 'Delay upper bound must be positive');

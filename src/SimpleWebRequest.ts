@@ -136,9 +136,10 @@ function isFormDataContentType(ct: string): boolean {
 }
 
 export const DefaultOptions: WebRequestOptions = {
-    priority: WebRequestPriority.Normal
+    priority: WebRequestPriority.Normal,
 };
 
+// eslint-disable-next-line @typescript-eslint/interface-name-prefix
 export interface ISimpleWebRequestOptions {
     // Maximum executing requests allowed. Other requests will be queued until free spots become available.
     MaxSimultaneousRequests: number;
@@ -157,7 +158,7 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     HungRequestCleanupIntervalMs: 10000,
 
     setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
-    clearTimeout: (id: number) => window.clearTimeout(id)
+    clearTimeout: (id: number) => window.clearTimeout(id),
 };
 
 export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse): ErrorHandlingType {
@@ -214,9 +215,9 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
     constructor(protected _action: string,
-                protected _url: string, options: TOptions,
-                protected _getHeaders?: () => Headers,
-                protected _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
+            protected _url: string, options: TOptions,
+            protected _getHeaders?: () => Headers,
+            protected _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
         this._options = _.defaults(options, DefaultOptions);
     }
 
@@ -663,10 +664,10 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
     private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
 
     constructor(action: string,
-                url: string,
-                options: TOptions,
-                getHeaders?: () => Headers,
-                blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
+            url: string,
+            options: TOptions,
+            getHeaders?: () => Headers,
+            blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
         super(action, url, options, getHeaders, blockRequestUntil);
     }
 
@@ -815,7 +816,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 statusCode: statusCode,
                 statusText: statusText,
                 headers: headers,
-                body: body as TBody
+                body: body as TBody,
             };
 
             this._deferred.resolve(resp);
@@ -830,7 +831,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 headers: headers,
                 body: body,
                 canceled: this._aborted,
-                timedOut: this._timedOut
+                timedOut: this._timedOut,
             };
 
             if (this._options.augmentErrorResponse) {

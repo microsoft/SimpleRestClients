@@ -5,7 +5,7 @@ import {
     SimpleWebRequest,
     SimpleWebRequestOptions,
     WebErrorResponse,
-    WebRequestPriority
+    WebRequestPriority,
 } from '../src/SimpleWebRequest';
 import { DETAILED_RESPONSE } from './helpers';
 
@@ -48,7 +48,7 @@ describe('SimpleWebRequest', () => {
     it('sends json POST request', () => {
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text()
+            text: faker.lorem.text(),
         };
         const requestOptions = { sendData };
         const statusCode = 201;
@@ -74,7 +74,7 @@ describe('SimpleWebRequest', () => {
     it('allows to set request headers', () => {
         const headers = {
             'X-Requested-With': 'XMLHttpRequest',
-            'Max-Forwards': '10'
+            'Max-Forwards': '10',
         };
         const method = 'POST';
         const url = faker.internet.url();
@@ -93,7 +93,7 @@ describe('SimpleWebRequest', () => {
         spyOn(console, 'error');
 
         const headers = {
-            'Accept': 'application/xml'
+            'Accept': 'application/xml',
         };
         const method = 'GET';
         const url = faker.internet.url();
@@ -108,7 +108,7 @@ describe('SimpleWebRequest', () => {
         spyOn(console, 'error');
 
         const headers = {
-            'Content-Type': 'application/xml'
+            'Content-Type': 'application/xml',
         };
         const method = 'GET';
         const url = faker.internet.url();
@@ -325,7 +325,7 @@ describe('SimpleWebRequest', () => {
             const requestPromise = new SimpleWebRequest<string>(url, method, {
                 timeout: 10,
                 retries: 1,
-                customErrorHandler: () => ErrorHandlingType.RetryCountedWithBackoff
+                customErrorHandler: () => ErrorHandlingType.RetryCountedWithBackoff,
             }).start();
 
             requestPromise

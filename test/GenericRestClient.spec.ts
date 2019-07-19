@@ -36,7 +36,7 @@ describe('GenericRestClient', () => {
         const body = {
             title: faker.name.title(),
             text: faker.lorem.text(),
-            id
+            id,
         };
         const path = `/get/${id}`;
         const url = BASE_URL + path;
@@ -47,7 +47,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -64,7 +64,7 @@ describe('GenericRestClient', () => {
         const body = {
             title: faker.name.title(),
             text: faker.lorem.text(),
-            id
+            id,
         };
         const path = `/get/${id}`;
         const url = BASE_URL + path;
@@ -74,7 +74,7 @@ describe('GenericRestClient', () => {
             statusCode,
             method,
             body,
-            url
+            url,
         };
 
         http.performApiGetDetailed(path, { contentType: 'json' })
@@ -83,7 +83,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -97,7 +97,7 @@ describe('GenericRestClient', () => {
         const method = 'POST';
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text()
+            text: faker.lorem.text(),
         };
         const body = { ...sendData, id: faker.random.uuid() };
         const path = '/post';
@@ -109,7 +109,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -124,7 +124,7 @@ describe('GenericRestClient', () => {
         const onSuccess = jasmine.createSpy('onSuccess');
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text()
+            text: faker.lorem.text(),
         };
         const method = 'POST';
         const body = { ...sendData, id: faker.random.uuid() };
@@ -136,7 +136,7 @@ describe('GenericRestClient', () => {
             statusCode,
             method,
             body,
-            url
+            url,
         };
 
         http.performApiPostDetailed(path, sendData, { contentType: 'json' })
@@ -145,7 +145,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -170,7 +170,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -195,7 +195,7 @@ describe('GenericRestClient', () => {
             statusCode,
             method,
             body,
-            url
+            url,
         };
 
         http.performApiPutDetailed(path, sendData, { contentType: 'json' })
@@ -204,7 +204,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -221,7 +221,7 @@ describe('GenericRestClient', () => {
         const method = 'PATCH';
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text()
+            text: faker.lorem.text(),
         };
         const body = { ...sendData, text: faker.lorem.text(), id };
         const path = '/patch' + id;
@@ -233,7 +233,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -249,7 +249,7 @@ describe('GenericRestClient', () => {
         const onSuccess = jasmine.createSpy('onSuccess');
         const sendData = {
             title: faker.name.title(),
-            text: faker.lorem.text()
+            text: faker.lorem.text(),
         };
         const method = 'PATCH';
         const body = { ...sendData, id: faker.random.uuid() };
@@ -261,7 +261,7 @@ describe('GenericRestClient', () => {
             statusCode,
             method,
             body,
-            url
+            url,
         };
 
         http.performApiPatchDetailed(path, sendData, { contentType: 'json' })
@@ -270,7 +270,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -294,7 +294,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -317,7 +317,7 @@ describe('GenericRestClient', () => {
             statusCode,
             method,
             body,
-            url
+            url,
         };
 
         http.performApiDeleteDetailed(path, sendData, { contentType: 'json' })
@@ -326,7 +326,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
@@ -337,7 +337,7 @@ describe('GenericRestClient', () => {
 
     it('performs request with custom headers', () => {
         const headers = {
-            'Authorization': `Barrier ${faker.random.uuid()}`
+            'Authorization': `Barrier ${faker.random.uuid()}`,
         };
 
         class Http extends GenericRestClient {
@@ -380,7 +380,7 @@ describe('GenericRestClient', () => {
         const request = jasmine.Ajax.requests.mostRecent();
         request.respondWith({
             responseText: JSON.stringify(body),
-            status: statusCode
+            status: statusCode,
         });
 
         expect(request.url).toEqual(url);
