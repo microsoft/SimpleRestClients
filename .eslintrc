@@ -1,11 +1,13 @@
 {
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
   "extends": ["skype"],
   "env": {
     "jasmine": true
   },
 
   "rules": {
-    "@typescript-eslint/interface-name-prefix": "off",
     "no-console": ["error", { "allow": ["error", "warn"] }]
   }
 }

@@ -3,12 +3,12 @@ export const REQUEST_OPTIONS = {
     withCredentials: false,
     contentType: 'json',
     priority: 2,
-    retries: 0
+    retries: 0,
 };
 
 export const REQUEST_HEADERS = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
 };
 
 export const DETAILED_RESPONSE = {
@@ -18,5 +18,5 @@ export const DETAILED_RESPONSE = {
     statusText: undefined,
     headers: { 'content-type': 'application/json' },
     body: '',
-    url: ''
+    url: '',
 };
