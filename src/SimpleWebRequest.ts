@@ -6,10 +6,9 @@
  * Simple client for issuing web requests.
  */
 
-import * as _ from 'lodash';
 import * as SyncTasks from 'synctasks';
 
-import { assert } from './utils';
+import { attempt, isObject, isString, remove, assert, clone } from './utils';
 import { ExponentialTime } from './ExponentialTime';
 
 interface Dictionary<T> {
@@ -215,10 +214,12 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected _retryExponentialTime = new ExponentialTime(1000, 300000);
 
     constructor(protected _action: string,
-            protected _url: string, options: TOptions,
-            protected _getHeaders?: () => Headers,
-            protected _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
-        this._options = _.defaults(options, DefaultOptions);
+            protected _url: string,
+            protected readonly options: TOptions,
+            protected readonly _getHeaders?: () => Headers,
+            protected readonly _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
+
+        this._options = { ...DefaultOptions, ...options };
     }
 
     getPriority(): WebRequestPriority {
@@ -233,7 +234,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             blockedList.push(req);
             const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || SyncTasks.Resolved();
             blockPromise.finally(() => {
-                _.remove(blockedList, req);
+                remove(blockedList, req);
             }).then(() => {
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
@@ -279,8 +280,8 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     protected _removeFromQueue(): void {
         // Only pull from request queue and executing queue here - pulling from the blocked queue can result in requests
         // being queued up multiple times if _respond fires more than once (it shouldn't, but does happen in the wild)
-        _.remove(executingList, this);
-        _.remove(requestQueue, this);
+        remove(executingList, this);
+        remove(requestQueue, this);
     }
 
     protected _assertAndClean(expression: any, message: string): void {
@@ -298,7 +299,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         this._xhrRequestHeaders = {};
 
         // xhr.open() can throw an exception for a CSP violation.
-        const openError = _.attempt(() => {
+        const openError = attempt(() => {
             // Apparently you're supposed to open the connection before adding events to it.  If you don't, the node.js implementation
             // of XHR actually calls this.abort() at the start of open()...  Bad implementations, hooray.
             this._xhr!!!.open(this._action, this._url, true);
@@ -428,10 +429,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         const acceptType = this._options.acceptType || 'json';
         const responseType = this._options.customResponseType || SimpleWebRequestBase._getResponseType(acceptType);
-
-        const responseTypeError = _.attempt(() => {
-            this._xhr!!!.responseType = responseType;
-        });
+        const responseTypeError = attempt(() => this._xhr!!!.responseType = responseType);
 
         if (responseTypeError) {
             // WebKit added support for the json responseType value on 09/03/2013
@@ -508,17 +506,19 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
     static mapBody(sendData: SendDataType, contentType: string): SendDataType {
         if (isJsonContentType(contentType)) {
-            if (!_.isString(sendData)) {
+            if (!isString(sendData)) {
                 return JSON.stringify(sendData);
             }
         } else if (isFormContentType(contentType)) {
-            if (!_.isString(sendData) && _.isObject(sendData)) {
-                const params = _.map(sendData as Params, (val, key) =>
-                    encodeURIComponent(key) + (val ? '=' + encodeURIComponent(val.toString()) : ''));
-                return params.join('&');
+            if (!isString(sendData) && isObject(sendData)) {
+                const params = sendData as Params;
+
+                return Object.keys(params)
+                    .map(param => encodeURIComponent(param) + (params[param] ? '=' + encodeURIComponent(params[param].toString()) : ''))
+                    .join('&');
             }
         } else if (isFormDataContentType(contentType)) {
-            if (_.isObject(sendData)) {
+            if (isObject(sendData)) {
                 // Note: This only works for IE10 and above.
                 const formData = new FormData();
                 const params = sendData as Params;
@@ -555,26 +555,26 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         let headers: Headers = {};
 
         if (this._getHeaders && !this._options.overrideGetHeaders && !this._options.headers) {
-            headers = _.extend(headers, this._getHeaders());
+            headers = { ...headers, ...this._getHeaders() };
         }
 
         if (this._options.overrideGetHeaders) {
-            headers = _.extend(headers, this._options.overrideGetHeaders);
+            headers = { ...headers, ...this._options.overrideGetHeaders };
         }
 
         if (this._options.headers) {
-            headers = _.extend(headers, this._options.headers);
+            headers = { ...headers, ...this._options.headers };
         }
 
         if (this._options.augmentHeaders) {
-            headers = _.extend(headers, this._options.augmentHeaders);
+            headers = { ...headers, ...this._options.augmentHeaders };
         }
 
         return headers;
     }
 
     getOptions(): Readonly<WebRequestOptions> {
-        return _.cloneDeep(this._options);
+        return clone(this._options);
     }
 
     setPriority(newPriority: WebRequestPriority): void {
@@ -594,7 +594,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
 
         // Remove and re-queue
-        _.remove(requestQueue, item => item === this);
+        remove(requestQueue, this);
         this._enqueue();
     }
 
@@ -617,22 +617,23 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
 
         // Check if the current queues, if the request is already in there, nothing to enqueue
-        if (_.includes(executingList, this) || _.includes(blockedList, this) || _.includes(requestQueue, this)) {
+        if (executingList.indexOf(this) >= 0 || blockedList.indexOf(this) >= 0 || requestQueue.indexOf(this) >= 0) {
             return;
         }
 
         // Throw it on the queue
-        const index = _.findIndex(requestQueue, request =>
+        const index = requestQueue.findIndex(request =>
             // find a request with the same priority, but newer
             (request.getPriority() === this.getPriority() && request._created > this._created) ||
             // or a request with lower priority
-            (request.getPriority() < this.getPriority()));
+            (request.getPriority() < this.getPriority()),
+        );
 
         if (index > -1) {
-            //add me before the found request
+            // add me before the found request
             requestQueue.splice(index, 0, this);
         } else {
-            //add me at the end
+            // add me at the end
             requestQueue.push(this);
         }
 
@@ -788,7 +789,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
             body = this._xhr.response;
             if (headers['content-type'] && isJsonContentType(headers['content-type'])) {
-                if (!body || !_.isObject(body)) {
+                if (!body || !isObject(body)) {
                     // Response can be null if the responseType does not match what the server actually sends
                     // https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/responseType
 

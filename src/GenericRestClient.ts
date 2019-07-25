@@ -7,7 +7,7 @@
  */
 
 import * as SyncTasks from 'synctasks';
-import { defaults, isString } from 'lodash';
+import { isString } from './utils';
 import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
 export type HttpAction = 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH';
@@ -46,9 +46,9 @@ export class GenericRestClient {
     protected _performApiCall<T>(apiPath: string,
             action: HttpAction,
             objToPost: any,
-            givenOptions?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            givenOptions: ApiCallOptions = {}): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
-        let options = defaults<ApiCallOptions, ApiCallOptions, ApiCallOptions>({}, givenOptions || {}, this._defaultOptions);
+        let options: ApiCallOptions = { ...this._defaultOptions, ...givenOptions };
         if (objToPost) {
             options.sendData = objToPost;
         }
