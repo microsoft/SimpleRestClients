@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.2.8",
+  "version": "0.2.10",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -22,7 +22,7 @@
     "@types/jasmine-ajax": "3.1.40",
     "@typescript-eslint/eslint-plugin": "2.0.0",
     "@typescript-eslint/parser": "2.0.0",
-    "eslint": "6.1.0",
+    "eslint": "6.2.1",
     "eslint-config-skype": "0.4.0",
     "faker": "4.1.0",
     "fork-ts-checker-webpack-plugin": "1.5.0",

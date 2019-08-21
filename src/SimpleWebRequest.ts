@@ -243,7 +243,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                 } else {
                     req._enqueue();
                 }
-            }, err => {
+            }, (err: any) => {
                 // fail the request if the block promise is rejected
                 req._respond('_blockRequestUntil rejected: ' + err);
             });
@@ -429,7 +429,9 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 
         const acceptType = this._options.acceptType || 'json';
         const responseType = this._options.customResponseType || SimpleWebRequestBase._getResponseType(acceptType);
-        const responseTypeError = attempt(() => this._xhr!!!.responseType = responseType);
+        const responseTypeError = attempt(() => {
+            this._xhr!!!.responseType = responseType;
+        });
 
         if (responseTypeError) {
             // WebKit added support for the json responseType value on 09/03/2013
