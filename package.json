@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -19,16 +19,16 @@
   "devDependencies": {
     "@types/faker": "4.1.5",
     "@types/jasmine": "3.4.0",
-    "@types/jasmine-ajax": "3.1.40",
-    "@typescript-eslint/eslint-plugin": "2.0.0",
-    "@typescript-eslint/parser": "2.0.0",
-    "eslint": "6.2.1",
-    "eslint-config-skype": "0.4.0",
+    "@types/jasmine-ajax": "3.3.0",
+    "@typescript-eslint/eslint-plugin": "2.2.0",
+    "@typescript-eslint/parser": "2.2.0",
+    "eslint": "6.3.0",
+    "eslint-config-skype": "0.4.1",
     "faker": "4.1.0",
     "fork-ts-checker-webpack-plugin": "1.5.0",
     "jasmine": "3.4.0",
     "jasmine-core": "3.4.0",
-    "karma": "4.2.0",
+    "karma": "4.3.0",
     "karma-chrome-launcher": "3.1.0",
     "karma-jasmine": "2.0.1",
     "karma-jasmine-ajax": "0.1.13",
@@ -37,9 +37,9 @@
     "karma-spec-reporter": "0.0.32",
     "karma-webpack": "4.0.2",
     "rimraf": "3.0.0",
-    "ts-loader": "6.0.4",
-    "typescript": "3.5.3",
-    "webpack": "4.39.2"
+    "ts-loader": "6.1.0",
+    "typescript": "3.6.3",
+    "webpack": "4.40.2"
   },
   "repository": {
     "type": "git",

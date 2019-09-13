@@ -156,8 +156,8 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
     MaxSimultaneousRequests: 5,
     HungRequestCleanupIntervalMs: 10000,
 
-    setTimeout: (callback: () => void, timeoutMs?: number) => window.setTimeout(callback, timeoutMs),
-    clearTimeout: (id: number) => window.clearTimeout(id),
+    setTimeout: (callback: () => void, timeoutMs?: number) => setTimeout(callback, timeoutMs),
+    clearTimeout: (id: number) => clearTimeout(id),
 };
 
 export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse): ErrorHandlingType {
@@ -261,7 +261,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
         }
     }
 
-    private static _hungRequestCleanupTimerCallback = () => {
+    private static _hungRequestCleanupTimerCallback = (): void => {
         hungRequestCleanupTimer = undefined;
         executingList.filter(request => {
             if (request._xhr && request._xhr.readyState === 4) {

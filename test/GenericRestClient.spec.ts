@@ -429,7 +429,7 @@ describe('GenericRestClient', () => {
                 return blockDefer.promise();
             }
 
-            protected _customErrorHandler = (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse) => {
+            protected _customErrorHandler = (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse): ErrorHandlingType => {
                 if (errorResponse.canceled) {
                     return ErrorHandlingType.DoNotRetry;
                 }
@@ -486,7 +486,7 @@ describe('GenericRestClient', () => {
                     return blockDefer.promise();
                 }
 
-                protected _customErrorHandler = () => {
+                protected _customErrorHandler = (): ErrorHandlingType => {
                     return ErrorHandlingType.RetryUncountedImmediately;
                 };
             }
