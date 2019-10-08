@@ -1,7 +1,6 @@
 # SimpleRestClients
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/Microsoft/SimpleRestClients/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/simplerestclients.svg?style=flat-square)](https://www.npmjs.com/package/simplerestclients) [![npm downloads](https://img.shields.io/npm/dm/simplerestclients.svg?style=flat-square)](https://www.npmjs.com/package/simplerestclients) [![Build Status](https://img.shields.io/travis/Microsoft/SimpleRestClients/master.svg?style=flat-square)](https://travis-ci.org/Microsoft/SimpleRestClients) [![David](https://img.shields.io/david/Microsoft/SimpleRestClients.svg?style=flat-square)](https://github.com/Microsoft/SimpleRestClients)
-[![David](https://img.shields.io/david/dev/Microsoft/SimpleRestClients.svg?style=flat-square)](https://github.com/Microsoft/SimpleRestClients)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](https://github.com/Microsoft/SimpleRestClients/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/simplerestclients.svg?style=flat-square)](https://www.npmjs.com/package/simplerestclients) [![Build Status](https://img.shields.io/travis/Microsoft/SimpleRestClients/master.svg?style=flat-square)](https://travis-ci.org/Microsoft/SimpleRestClients) [![npm downloads](https://img.shields.io/npm/dm/simplerestclients.svg?style=flat-square)](https://www.npmjs.com/package/simplerestclients) ![npm bundle size (minified)](https://img.shields.io/bundlephobia/min/simplerestclients.svg?style=flat-square) ![npm bundle size (minified + gzip)](https://img.shields.io/bundlephobia/minzip/simplerestclients.svg?style=flat-square)
 
 > A simple set of wrappers for RESTful calls.
 
