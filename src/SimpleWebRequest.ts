@@ -18,13 +18,18 @@ interface Dictionary<T> {
 export interface Headers extends Dictionary<string> {}
 export interface Params extends Dictionary<any> {}
 
+export interface Exception {
+    message: string;
+    name: string;
+}
+
 export interface WebTransportResponseBase {
     url: string;
     method: string;
     statusCode: number;
     statusText: string | undefined;
     headers: Headers;
-    responseParsingFailed: boolean;
+    responseParsingException?: Exception;
 }
 
 export interface WebTransportResponse<TBody> extends WebTransportResponseBase {
@@ -133,6 +138,17 @@ function isFormContentType(ct: string): boolean {
 
 function isFormDataContentType(ct: string): boolean {
     return !!ct && ct.indexOf('multipart/form-data') === 0;
+}
+
+export function serializeError(error: Error): Exception | undefined {
+    if (error instanceof Error) {
+        return {
+            name: error.name,
+            message: error.message,
+        };
+    }
+
+    return undefined;
 }
 
 export const DefaultOptions: WebRequestOptions = {
@@ -763,7 +779,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         let headers: Headers = {};
         let body: any;
-        let responseParsingFailed = false;
+        let responseParsingException: Exception | undefined = undefined;
 
         // Build the response info
         if (this._xhr) {
@@ -804,9 +820,9 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                             body = JSON.parse(this._xhr.responseText);
                         } catch (ex) {
                             // If a service returns invalid JSON in a payload, we can end up here - don't crash
-                            // responseParsingFailed flag will indicate that we got response from the server that was corrupted.
+                            // responseParsingException flag will indicate that we got response from the server that was corrupted.
                             // This will be manifested as null on receipient side and flag can help in understanding the problem.
-                            responseParsingFailed = true;
+                            responseParsingException = serializeError(ex);
                             console.warn('Failed to parse XHR JSON response');
                         }
                     }
@@ -825,7 +841,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 statusText: statusText,
                 headers: headers,
                 body: body as TBody,
-                responseParsingFailed: responseParsingFailed,
+                responseParsingException: responseParsingException,
             };
 
             this._deferred.resolve(resp);
@@ -841,7 +857,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 body: body,
                 canceled: this._aborted,
                 timedOut: this._timedOut,
-                responseParsingFailed: responseParsingFailed,
+                responseParsingException: responseParsingException,
             };
 
             if (this._options.augmentErrorResponse) {
