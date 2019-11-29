@@ -24,6 +24,7 @@ export interface WebTransportResponseBase {
     statusCode: number;
     statusText: string | undefined;
     headers: Headers;
+    responseParsingFailed: boolean;
 }
 
 export interface WebTransportResponse<TBody> extends WebTransportResponseBase {
@@ -762,6 +763,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         let headers: Headers = {};
         let body: any;
+        let responseParsingFailed = false;
 
         // Build the response info
         if (this._xhr) {
@@ -802,6 +804,9 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                             body = JSON.parse(this._xhr.responseText);
                         } catch (ex) {
                             // If a service returns invalid JSON in a payload, we can end up here - don't crash
+                            // responseParsingFailed flag will indicate that we got response from the server that was corrupted.
+                            // This will be manifested as null on receipient side and flag can help in understanding the problem.
+                            responseParsingFailed = true;
                             console.warn('Failed to parse XHR JSON response');
                         }
                     }
@@ -820,6 +825,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 statusText: statusText,
                 headers: headers,
                 body: body as TBody,
+                responseParsingFailed: responseParsingFailed,
             };
 
             this._deferred.resolve(resp);
@@ -835,6 +841,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 body: body,
                 canceled: this._aborted,
                 timedOut: this._timedOut,
+                responseParsingFailed: responseParsingFailed,
             };
 
             if (this._options.augmentErrorResponse) {

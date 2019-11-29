@@ -68,6 +68,7 @@ describe('GenericRestClient', () => {
         };
         const path = `/get/${id}`;
         const url = BASE_URL + path;
+        const responseParsingFailed = false;
         const response = {
             ...DETAILED_RESPONSE,
             requestHeaders: { 'Accept': 'application/json' },
@@ -75,6 +76,7 @@ describe('GenericRestClient', () => {
             method,
             body,
             url,
+            responseParsingFailed,
         };
 
         http.performApiGetDetailed(path, { contentType: 'json' })
@@ -130,6 +132,7 @@ describe('GenericRestClient', () => {
         const body = { ...sendData, id: faker.random.uuid() };
         const path = '/post';
         const url = BASE_URL + path;
+        const responseParsingFailed = false;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...REQUEST_OPTIONS, sendData },
@@ -137,6 +140,7 @@ describe('GenericRestClient', () => {
             method,
             body,
             url,
+            responseParsingFailed,
         };
 
         http.performApiPostDetailed(path, sendData, { contentType: 'json' })
@@ -189,6 +193,7 @@ describe('GenericRestClient', () => {
         const body = { ...sendData, id: faker.random.uuid() };
         const path = `/patch/${id}`;
         const url = BASE_URL + path;
+        const responseParsingFailed = false;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...REQUEST_OPTIONS, sendData },
@@ -196,6 +201,7 @@ describe('GenericRestClient', () => {
             method,
             body,
             url,
+            responseParsingFailed,
         };
 
         http.performApiPutDetailed(path, sendData, { contentType: 'json' })
@@ -255,6 +261,7 @@ describe('GenericRestClient', () => {
         const body = { ...sendData, id: faker.random.uuid() };
         const path = `/patch/${id}`;
         const url = BASE_URL + path;
+        const responseParsingFailed = false;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...REQUEST_OPTIONS, sendData },
@@ -262,6 +269,7 @@ describe('GenericRestClient', () => {
             method,
             body,
             url,
+            responseParsingFailed,
         };
 
         http.performApiPatchDetailed(path, sendData, { contentType: 'json' })
@@ -311,6 +319,7 @@ describe('GenericRestClient', () => {
         const body = {};
         const path = `/delete/${id}`;
         const url = BASE_URL + path;
+        const responseParsingFailed = false;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...REQUEST_OPTIONS, sendData },
@@ -318,6 +327,7 @@ describe('GenericRestClient', () => {
             method,
             body,
             url,
+            responseParsingFailed,
         };
 
         http.performApiDeleteDetailed(path, sendData, { contentType: 'json' })
