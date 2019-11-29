@@ -140,7 +140,7 @@ function isFormDataContentType(ct: string): boolean {
     return !!ct && ct.indexOf('multipart/form-data') === 0;
 }
 
-export function serializeError(error: Error): Exception | undefined {
+function createException(error: Error): Exception | undefined {
     if (error instanceof Error) {
         return {
             name: error.name,
@@ -822,7 +822,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                             // If a service returns invalid JSON in a payload, we can end up here - don't crash
                             // responseParsingException flag will indicate that we got response from the server that was corrupted.
                             // This will be manifested as null on receipient side and flag can help in understanding the problem.
-                            responseParsingException = serializeError(ex);
+                            responseParsingException = createException(ex);
                             console.warn('Failed to parse XHR JSON response');
                         }
                     }
