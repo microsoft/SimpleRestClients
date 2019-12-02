@@ -29,7 +29,7 @@ export interface WebTransportResponseBase {
     statusCode: number;
     statusText: string | undefined;
     headers: Headers;
-    responseParsingException?: Exception;
+    responseParsingException?: Error;
 }
 
 export interface WebTransportResponse<TBody> extends WebTransportResponseBase {
@@ -138,17 +138,6 @@ function isFormContentType(ct: string): boolean {
 
 function isFormDataContentType(ct: string): boolean {
     return !!ct && ct.indexOf('multipart/form-data') === 0;
-}
-
-function createException(error: Error): Exception | undefined {
-    if (error instanceof Error) {
-        return {
-            name: error.name,
-            message: error.message,
-        };
-    }
-
-    return undefined;
 }
 
 export const DefaultOptions: WebRequestOptions = {
@@ -779,7 +768,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         let headers: Headers = {};
         let body: any;
-        let responseParsingException: Exception | undefined = undefined;
+        let responseParsingException: Error | undefined = undefined;
 
         // Build the response info
         if (this._xhr) {
@@ -822,7 +811,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                             // If a service returns invalid JSON in a payload, we can end up here - don't crash
                             // responseParsingException flag will indicate that we got response from the server that was corrupted.
                             // This will be manifested as null on receipient side and flag can help in understanding the problem.
-                            responseParsingException = createException(ex);
+                            responseParsingException = ex;
                             console.warn('Failed to parse XHR JSON response');
                         }
                     }
