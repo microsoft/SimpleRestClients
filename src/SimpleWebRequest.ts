@@ -18,11 +18,6 @@ interface Dictionary<T> {
 export interface Headers extends Dictionary<string> {}
 export interface Params extends Dictionary<any> {}
 
-export interface Exception {
-    message: string;
-    name: string;
-}
-
 export interface WebTransportResponseBase {
     url: string;
     method: string;
