@@ -30,12 +30,14 @@ describe('SimpleWebRequest', () => {
         const onSuccess = jasmine.createSpy('onSuccess');
         const method = 'GET';
         const url = faker.internet.url();
+        const responseParsingException = undefined;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...requestOptions, priority: WebRequestPriority.Normal },
             requestHeaders,
             method,
             url,
+            responseParsingException,
         };
 
         new SimpleWebRequest<string>(method, url, requestOptions)
@@ -62,6 +64,7 @@ describe('SimpleWebRequest', () => {
         const method = 'POST';
         const body = { ...sendData, id: faker.random.uuid() };
         const url = faker.internet.url();
+        const responseParsingException = undefined;
         const response = {
             ...DETAILED_RESPONSE,
             requestOptions: { ...requestOptions, priority: WebRequestPriority.Normal },
@@ -69,6 +72,7 @@ describe('SimpleWebRequest', () => {
             method,
             body,
             url,
+            responseParsingException,
         };
 
         new SimpleWebRequest<string>(method, url, requestOptions)
