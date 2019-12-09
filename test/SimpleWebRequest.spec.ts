@@ -1,5 +1,6 @@
 import * as faker from 'faker';
 import * as SyncTasks from 'synctasks';
+
 import {
     ErrorHandlingType,
     SimpleWebRequest,
@@ -7,6 +8,7 @@ import {
     WebErrorResponse,
     WebRequestPriority,
 } from '../src/SimpleWebRequest';
+
 import { DETAILED_RESPONSE } from './helpers';
 
 describe('SimpleWebRequest', () => {

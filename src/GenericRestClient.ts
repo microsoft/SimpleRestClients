@@ -7,6 +7,7 @@
  */
 
 import * as SyncTasks from 'synctasks';
+
 import { isString } from './utils';
 import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
@@ -48,7 +49,7 @@ export class GenericRestClient {
             objToPost: any,
             givenOptions: ApiCallOptions = {}): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
 
-        let options: ApiCallOptions = { ...this._defaultOptions, ...givenOptions };
+        const options: ApiCallOptions = { ...this._defaultOptions, ...givenOptions };
         if (objToPost) {
             options.sendData = objToPost;
         }

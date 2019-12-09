@@ -763,7 +763,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
 
         let headers: Headers = {};
         let body: any;
-        let responseParsingException: Error | undefined = undefined;
+        let responseParsingException: Error | undefined;
 
         // Build the response info
         if (this._xhr) {

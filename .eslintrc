@@ -11,6 +11,10 @@
   },
 
   "rules": {
-    "no-console": ["error", { "allow": ["error", "warn"] }]
+    "no-console": ["error", { "allow": ["error", "warn"] }],
+    "prefer-const": "off",
+    "@typescript-eslint/no-floating-promises": "off",
+    "dot-notation": "off",
+    "arrow-body-style": "off"
   }
 }
