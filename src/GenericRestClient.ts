@@ -6,8 +6,6 @@
  * Base client type for accessing RESTful services
  */
 
-import * as SyncTasks from 'synctasks';
-
 import { isString } from './utils';
 import { WebRequestOptions, SimpleWebRequest, WebResponse, Headers } from './SimpleWebRequest';
 
@@ -30,7 +28,12 @@ export interface ETagResponse<T> {
     eTag?: string;
 }
 
-export class GenericRestClient {
+export interface ApiCallResponse<T, TCustomOptions extends {}> {
+    req: SimpleWebRequest<T, ApiCallOptions & Partial<TCustomOptions>>;
+    promise: Promise<WebResponse<T, ApiCallOptions & Partial<TCustomOptions>>>;
+}
+
+export class GenericRestClient<TCustomOptions extends {} = {}> {
 
     protected _endpointUrl: string;
 
@@ -47,9 +50,9 @@ export class GenericRestClient {
     protected _performApiCall<T>(apiPath: string,
             action: HttpAction,
             objToPost: any,
-            givenOptions: ApiCallOptions = {}): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+            givenOptions: Partial<ApiCallOptions & TCustomOptions> = {}): ApiCallResponse<T, TCustomOptions> {
 
-        const options: ApiCallOptions = { ...this._defaultOptions, ...givenOptions };
+        const options: ApiCallOptions & Partial<TCustomOptions> = { ...this._defaultOptions, ...givenOptions };
         if (objToPost) {
             options.sendData = objToPost;
         }
@@ -67,90 +70,94 @@ export class GenericRestClient {
 
         const finalUrl = options.excludeEndpointUrl ? apiPath : this._endpointUrl + apiPath;
 
-        return new SimpleWebRequest<T, ApiCallOptions>(
+        const req = new SimpleWebRequest<T, ApiCallOptions & Partial<TCustomOptions>>(
             action,
             finalUrl,
             options,
             () => this._getHeaders(options),
             () => this._blockRequestUntil(options),
-        )
-            .start()
-            .then(response => {
-                this._processSuccessResponse<T>(response);
-                return response;
-            });
+        );
+
+        const promise = req.start().then(response => {
+            this._processSuccessResponse<T>(response);
+            return response;
+        });
+
+        return {
+            req,
+            promise,
+        };
     }
 
-    protected _getHeaders(options: ApiCallOptions): Headers {
+    protected _getHeaders(options: ApiCallOptions & Partial<TCustomOptions>): Headers {
         // Virtual function -- No-op by default
         return {};
     }
 
     // Override (but make sure to call super and chain appropriately) this function if you want to add more blocking criteria.
     // Also, this might be called multiple times to check if the conditions changed
-    protected _blockRequestUntil(options: ApiCallOptions): SyncTasks.Promise<void> | undefined {
+    protected _blockRequestUntil(options: ApiCallOptions & Partial<TCustomOptions>): Promise<void> | undefined {
         // No-op by default
         return undefined;
     }
 
     // Override this function to process any generic headers that come down with a successful response
-    protected _processSuccessResponse<T>(resp: WebResponse<T, ApiCallOptions>): void {
+    protected _processSuccessResponse<T>(resp: WebResponse<T, ApiCallOptions & Partial<TCustomOptions>>): void {
         // No-op by default
     }
 
-    performApiGet<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiGet<T>(apiPath: string, options?: ApiCallOptions & Partial<TCustomOptions>): Promise<T> {
         return this
             .performApiGetDetailed<T>(apiPath, options)
-            .then(resp => resp.body);
+            .promise.then(resp => resp.body);
     }
 
-    performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiGetDetailed<T>(apiPath: string, options?: ApiCallOptions & Partial<TCustomOptions>):
+    ApiCallResponse<T, ApiCallOptions & Partial<TCustomOptions>> {
         return this._performApiCall<T>(apiPath, 'GET', undefined, options);
     }
 
-    performApiPost<T>(apiPath: string, objToPost: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiPost<T>(apiPath: string, objToPost: any, options?: ApiCallOptions & Partial<TCustomOptions>): Promise<T> {
         return this
             .performApiPostDetailed<T>(apiPath, objToPost, options)
-            .then(resp => resp.body);
+            .promise.then(resp => resp.body);
     }
 
-    performApiPostDetailed<T>(apiPath: string,
-            objToPost: any,
-            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPostDetailed<T>(apiPath: string, objToPost: any, options?: ApiCallOptions & Partial<TCustomOptions>):
+    ApiCallResponse<T, ApiCallOptions & Partial<TCustomOptions>> {
         return this._performApiCall<T>(apiPath, 'POST', objToPost, options);
     }
 
-    performApiPatch<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiPatch<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions & Partial<TCustomOptions>): Promise<T> {
         return this
             .performApiPatchDetailed<T>(apiPath, objToPatch, options)
-            .then(resp => resp.body);
+            .promise.then(resp => resp.body);
     }
 
-    performApiPatchDetailed<T>(apiPath: string,
-            objToPatch: any,
-            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPatchDetailed<T>(apiPath: string, objToPatch: any, options?: ApiCallOptions & Partial<TCustomOptions>):
+    ApiCallResponse<T, ApiCallOptions & Partial<TCustomOptions>> {
         return this._performApiCall<T>(apiPath, 'PATCH', objToPatch, options);
     }
 
-    performApiPut<T>(apiPath: string, objToPut: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiPut<T>(apiPath: string, objToPut: any, options?: ApiCallOptions & Partial<TCustomOptions>): Promise<T> {
         return this
             .performApiPutDetailed<T>(apiPath, objToPut, options)
-            .then(resp => resp.body);
+            .promise.then(resp => resp.body);
     }
 
-    performApiPutDetailed<T>(apiPath: string, objToPut: any, options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiPutDetailed<T>(apiPath: string, objToPut: any, options?: ApiCallOptions & Partial<TCustomOptions>):
+    ApiCallResponse<T, ApiCallOptions & Partial<TCustomOptions>> {
         return this._performApiCall<T>(apiPath, 'PUT', objToPut, options);
     }
 
-    performApiDelete<T>(apiPath: string, objToDelete?: any, options?: ApiCallOptions): SyncTasks.Promise<T> {
+    performApiDelete<T>(apiPath: string, objToDelete?: any, options?: ApiCallOptions & Partial<TCustomOptions>): Promise<T> {
         return this
             .performApiDeleteDetailed<T>(apiPath, objToDelete, options)
-            .then(resp => resp.body);
+            .promise.then(resp => resp.body);
     }
 
-    performApiDeleteDetailed<T>(apiPath: string,
-            objToDelete: any,
-            options?: ApiCallOptions): SyncTasks.Promise<WebResponse<T, ApiCallOptions>> {
+    performApiDeleteDetailed<T>(apiPath: string, objToDelete: any, options?: ApiCallOptions & Partial<TCustomOptions>):
+    ApiCallResponse<T, ApiCallOptions & Partial<TCustomOptions>> {
         return this._performApiCall<T>(apiPath, 'DELETE', objToDelete, options);
     }
 }

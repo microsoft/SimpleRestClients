@@ -1,10 +1,9 @@
 import * as faker from 'faker';
-import * as SyncTasks from 'synctasks';
 
 import { ErrorHandlingType, SimpleWebRequestBase, WebErrorResponse } from '../src/SimpleWebRequest';
 import { GenericRestClient, ApiCallOptions } from '../src/GenericRestClient';
 
-import { DETAILED_RESPONSE, REQUEST_OPTIONS } from './helpers';
+import { DETAILED_RESPONSE, REQUEST_OPTIONS, asyncTick } from './helpers';
 
 class RestClient extends GenericRestClient { }
 const BASE_URL = faker.internet.url();
@@ -13,6 +12,7 @@ const http = new RestClient(BASE_URL);
 describe('GenericRestClient', () => {
     beforeAll(() => {
         jasmine.Ajax.install();
+        jasmine.clock().install();
         // Run an initial request to finish feature detection - this is needed so we can directly call onLoad
         const statusCode = 200;
         const onSuccess = jasmine.createSpy('onSuccess');
@@ -21,16 +21,27 @@ describe('GenericRestClient', () => {
         http.performApiGet(path)
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({ status: statusCode });
-        expect(onSuccess).toHaveBeenCalled();
-        jasmine.Ajax.uninstall();
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            request.respondWith({ status: statusCode });
+            return asyncTick();
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalled();
+            jasmine.Ajax.uninstall();
+            jasmine.clock().uninstall();
+        });
     });
 
-    beforeEach(() => jasmine.Ajax.install());
-    afterEach(() => jasmine.Ajax.uninstall());
+    beforeEach(() => {
+        jasmine.Ajax.install();
+        jasmine.clock().install();
+    });
+    afterEach(() => {
+        jasmine.Ajax.uninstall();
+        jasmine.clock().uninstall();
+    });
 
-    it('performs GET request with performApiGet', () => {
+    it('performs GET request with performApiGet ', () => {
         const id = faker.random.uuid();
         const statusCode = 200;
         const onSuccess = jasmine.createSpy('onSuccess');
@@ -43,19 +54,22 @@ describe('GenericRestClient', () => {
         const path = `/get/${id}`;
         const url = BASE_URL + path;
 
-        http.performApiGet(path)
+        const p1 = http.performApiGet(path)
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(onSuccess).toHaveBeenCalledWith(body);
     });
 
     it('performs GET request with performApiGetDetailed', () => {
@@ -81,21 +95,25 @@ describe('GenericRestClient', () => {
             responseParsingException,
         };
 
-        http.performApiGetDetailed(path, { contentType: 'json' })
-            .then(onSuccess);
+        const p1 = http.performApiGetDetailed(path, { contentType: 'json' })
+            .promise.then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(response);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
-    it('performs POST request with performApiPost', () => {
+    it('performs POST request with performApiPost ', () => {
         const statusCode = 201;
         const onSuccess = jasmine.createSpy('onSuccess');
         const method = 'POST';
@@ -107,20 +125,24 @@ describe('GenericRestClient', () => {
         const path = '/post';
         const url = BASE_URL + path;
 
-        http.performApiPost(path, sendData, { contentType: 'json' })
+        const p1 = http.performApiPost(path, sendData, { contentType: 'json' })
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
-        });
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
 
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(body);
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body);
+        });
     });
 
     it('performs POST request with performApiPostDetailed', () => {
@@ -145,19 +167,23 @@ describe('GenericRestClient', () => {
             responseParsingException,
         };
 
-        http.performApiPostDetailed(path, sendData, { contentType: 'json' })
-            .then(onSuccess);
+        const p1 = http.performApiPostDetailed(path, sendData, { contentType: 'json' })
+            .promise.then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(response);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
     it('performs PUT request with performApiPut', () => {
@@ -170,20 +196,24 @@ describe('GenericRestClient', () => {
         const path = '/put/' + id;
         const url = BASE_URL + path;
 
-        http.performApiPut(path, sendData, { contentType: 'json' })
+        const p1 = http.performApiPut(path, sendData, { contentType: 'json' })
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
-        });
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
 
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(body);
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body);
+        });
     });
 
     it('performs PUT request with performApiPutDetailed', () => {
@@ -206,20 +236,24 @@ describe('GenericRestClient', () => {
             responseParsingException,
         };
 
-        http.performApiPutDetailed(path, sendData, { contentType: 'json' })
-            .then(onSuccess);
+        const p1 = http.performApiPutDetailed(path, sendData, { contentType: 'json' })
+            .promise.then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(response);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
     it('performs PATCH request with performApiPatch', () => {
@@ -235,20 +269,24 @@ describe('GenericRestClient', () => {
         const path = '/patch' + id;
         const url = BASE_URL + path;
 
-        http.performApiPatch(path, sendData, { contentType: 'json' })
+        const p1 = http.performApiPatch(path, sendData, { contentType: 'json' })
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
-        });
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
 
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(body);
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body);
+        });
     });
 
     it('performs PATCH request with performApiPatchDetailed', () => {
@@ -274,20 +312,24 @@ describe('GenericRestClient', () => {
             responseParsingException,
         };
 
-        http.performApiPatchDetailed(path, sendData, { contentType: 'json' })
-            .then(onSuccess);
+        const p1 = http.performApiPatchDetailed(path, sendData, { contentType: 'json' })
+            .promise.then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(response);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
     it('performs DELETE request with performApiDelete', () => {
@@ -298,18 +340,21 @@ describe('GenericRestClient', () => {
         const path = `/delete/${faker.random.uuid()}`;
         const url = BASE_URL + path;
 
-        http.performApiDelete(path)
+        const p1 = http.performApiDelete(path)
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(onSuccess).toHaveBeenCalledWith(body);
     });
 
     it('performs DELETE request with performApiDeleteDetailed', () => {
@@ -332,19 +377,23 @@ describe('GenericRestClient', () => {
             responseParsingException,
         };
 
-        http.performApiDeleteDetailed(path, sendData, { contentType: 'json' })
-            .then(onSuccess);
+        const p1 = http.performApiDeleteDetailed(path, sendData, { contentType: 'json' })
+            .promise.then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
+
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.data() as any).toEqual(sendData);
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(response);
         });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.data() as any).toEqual(sendData);
-        expect(onSuccess).toHaveBeenCalledWith(response);
     });
 
     it('performs request with custom headers', () => {
@@ -362,14 +411,17 @@ describe('GenericRestClient', () => {
         const http = new Http(BASE_URL);
         const path = '/auth';
 
-        http.performApiGet(path)
+        const p1 = http.performApiGet(path)
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({ status: statusCode });
-
-        expect(request.requestHeaders['Authorization']).toEqual(headers['Authorization']);
-        expect(onSuccess).toHaveBeenCalled();
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.requestHeaders['Authorization']).toEqual(headers['Authorization']);
+            request.respondWith({ status: statusCode });
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalled();
+        });
     });
 
     it('overrides response', () => {
@@ -386,27 +438,33 @@ describe('GenericRestClient', () => {
         const body = [' x ', ' y ', ' z '];
         const url = BASE_URL + path;
 
-        http.performApiGet<string[]>(path)
+        const p1 = http.performApiGet<string[]>(path)
             .then(onSuccess);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({
-            responseText: JSON.stringify(body),
-            status: statusCode,
-        });
+        return asyncTick().then(() => {
+            const request = jasmine.Ajax.requests.mostRecent();
+            expect(request.url).toEqual(url);
+            expect(request.method).toEqual(method);
 
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(onSuccess).toHaveBeenCalledWith(body.map((str: string) => str.trim()));
+            request.respondWith({
+                responseText: JSON.stringify(body),
+                status: statusCode,
+            });
+            expect(request.status).toEqual(statusCode);
+
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalledWith(body.map((str: string) => str.trim()));
+        });
     });
 
     it('blocks the request with custom method', () => {
-        const blockDefer = SyncTasks.Defer<void>();
+        let blockResolver: () => void = () => undefined;
+        const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
 
         class Http extends GenericRestClient {
-            protected _blockRequestUntil(): SyncTasks.Promise<void>  {
-                return blockDefer.promise();
+            protected _blockRequestUntil(): Promise<void>  {
+                return blockPromise;
             }
         }
 
@@ -415,21 +473,29 @@ describe('GenericRestClient', () => {
         const http = new Http(BASE_URL);
         const path = '/auth';
 
-        http.performApiGet(path)
+        const p1 = http.performApiGet(path)
             .then(onSuccess);
 
-        let request = jasmine.Ajax.requests.mostRecent();
+        let request: any;
+        return asyncTick().then(() => {
+            request = jasmine.Ajax.requests.mostRecent();
 
-        expect(request).toBeUndefined();
-        blockDefer.resolve(void 0);
+            expect(request).toBeUndefined();
+            blockResolver();
 
-        request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({ status: statusCode });
-        expect(onSuccess).toHaveBeenCalled();
+            return asyncTick();
+        }).then(() => {
+            request = jasmine.Ajax.requests.mostRecent();
+            request.respondWith({ status: statusCode });
+            return p1;
+        }).then(() => {
+            expect(onSuccess).toHaveBeenCalled();
+        });
     });
 
     it('aborting request after failure w/retry', () => {
-        let blockDefer = SyncTasks.Defer<void>();
+        let blockResolver: () => void = () => undefined;
+        let blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
 
         class Http extends GenericRestClient {
             constructor(endpointUrl: string) {
@@ -437,8 +503,8 @@ describe('GenericRestClient', () => {
                 this._defaultOptions.customErrorHandler = this._customErrorHandler;
                 this._defaultOptions.timeout = 1;
             }
-            protected _blockRequestUntil(): SyncTasks.Promise<void> {
-                return blockDefer.promise();
+            protected _blockRequestUntil(): Promise<void> {
+                return blockPromise;
             }
 
             protected _customErrorHandler = (webRequest: SimpleWebRequestBase, errorResponse: WebErrorResponse): ErrorHandlingType => {
@@ -455,38 +521,38 @@ describe('GenericRestClient', () => {
         const http = new Http(BASE_URL);
         const path = '/auth';
 
-        const req = http.performApiGet(path)
+        const resp = http.performApiGetDetailed(path);
+        const p1 = resp.promise
             .then(onSuccess)
             .catch(onFailure);
 
-        blockDefer.resolve(void 0);
-        const request1 = jasmine.Ajax.requests.mostRecent();
+        return asyncTick().then(() => {
+            blockResolver();
+            return asyncTick();
+        }).then(() => {
+            const request1 = jasmine.Ajax.requests.mostRecent();
 
-        // Reset blockuntil so retries may block
-        blockDefer = SyncTasks.Defer<void>();
+            // Reset blockuntil so retries may block
+            blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
 
-        request1.respondWith({ status: statusCode });
-        expect(onSuccess).not.toHaveBeenCalled();
-        expect(onFailure).not.toHaveBeenCalled();
+            request1.respondWith({ status: statusCode });
+            return asyncTick();
+        }).then(() => {
+            expect(onSuccess).not.toHaveBeenCalled();
+            expect(onFailure).not.toHaveBeenCalled();
 
-        // Calls abort function
-        req.cancel();
-
-        expect(onSuccess).not.toHaveBeenCalled();
-        expect(onFailure).toHaveBeenCalled();
+            resp.req.abort();
+            return p1;
+        }).then(() => {
+            expect(onSuccess).not.toHaveBeenCalled();
+            expect(onFailure).toHaveBeenCalled();
+        });
     });
 
     describe('Timing related tests' , () => {
-        beforeEach(() => {
-            jasmine.clock().install();
-        });
-
-        afterEach(() => {
-            jasmine.clock().uninstall();
-        });
-
         it('failed request with retry handles multiple _respond calls', () => {
-            let blockDefer = SyncTasks.Defer<void>();
+            let blockResolver: () => void = () => undefined;
+            let blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
 
             class Http extends GenericRestClient {
                 constructor(endpointUrl: string) {
@@ -494,8 +560,8 @@ describe('GenericRestClient', () => {
                     this._defaultOptions.customErrorHandler = this._customErrorHandler;
                     this._defaultOptions.timeout = 1;
                 }
-                protected _blockRequestUntil(): SyncTasks.Promise<void> {
-                    return blockDefer.promise();
+                protected _blockRequestUntil(): Promise<void> {
+                    return blockPromise;
                 }
 
                 protected _customErrorHandler = (): ErrorHandlingType => {
@@ -508,27 +574,37 @@ describe('GenericRestClient', () => {
             const http = new Http(BASE_URL);
             const path = '/auth';
 
-            http.performApiGet(path)
+            const p1 = http.performApiGet(path)
                 .then(onSuccess);
 
-            blockDefer.resolve(void 0);
-            const request1 = jasmine.Ajax.requests.mostRecent();
+            return asyncTick().then(() => {
+                blockResolver();
+                return asyncTick();
+            }).then(() => {
+                const request1 = jasmine.Ajax.requests.mostRecent();
 
-            // Reset blockuntil so retries may block
-            blockDefer = SyncTasks.Defer<void>();
+                // Reset blockuntil so retries may block
+                blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
 
-            // Store this so we're able to emulate double-request callbacks
-            const onloadToCall = request1.onload as any;
-            request1.respondWith({ status: statusCode });
-            onloadToCall(undefined);
-            expect(onSuccess).not.toHaveBeenCalled();
-            blockDefer.resolve(void 0);
+                // Store this so we're able to emulate double-request callbacks
+                const onloadToCall = request1.onload as any;
+                request1.respondWith({ status: statusCode });
+                onloadToCall(undefined);
 
-            jasmine.clock().tick(100);
+                return asyncTick();
+            }).then(() => {
+                expect(onSuccess).not.toHaveBeenCalled();
+                blockResolver();
 
-            const request2 = jasmine.Ajax.requests.mostRecent();
-            request2.respondWith({ status: 200 });
-            expect(onSuccess).toHaveBeenCalled();
+                jasmine.clock().tick(100);
+                return asyncTick();
+            }).then(() => {
+                const request2 = jasmine.Ajax.requests.mostRecent();
+                request2.respondWith({ status: 200 });
+                return p1;
+            }).then(() => {
+                expect(onSuccess).toHaveBeenCalled();
+            });
         });
     });
 });

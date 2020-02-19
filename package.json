@@ -1,6 +1,6 @@
 {
   "name": "simplerestclients",
-  "version": "0.2.12",
+  "version": "1.0.0",
   "description": "A library of components for accessing RESTful services with javascript/typescript.",
   "author": "David de Regt <David.de.Regt@microsoft.com>",
   "scripts": {
@@ -13,9 +13,7 @@
     "test:watch": "npm run clean && karma start",
     "test:browser": "npm run clean && karma start --browsers=Chrome --single-run=false --auto-watch"
   },
-  "dependencies": {
-    "synctasks": "^0.3.3"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/faker": "4.1.8",
     "@types/jasmine": "3.5.0",

@@ -20,3 +20,10 @@ export const DETAILED_RESPONSE = {
     body: '',
     url: '',
 };
+
+export function asyncTick(): Promise<void> {
+    return new Promise((res, rej) => {
+        setTimeout(res, 0);
+        jasmine.clock().tick(10);
+    });
+}

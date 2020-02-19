@@ -6,8 +6,6 @@
  * Simple client for issuing web requests.
  */
 
-import * as SyncTasks from 'synctasks';
-
 import { attempt, isObject, isString, remove, assert, clone } from './utils';
 import { ExponentialTime } from './ExponentialTime';
 
@@ -218,7 +216,7 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
             protected _url: string,
             protected readonly options: TOptions,
             protected readonly _getHeaders?: () => Headers,
-            protected readonly _blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
+            protected readonly _blockRequestUntil?: () => Promise<void> | undefined) {
 
         this._options = { ...DefaultOptions, ...options };
     }
@@ -230,13 +228,17 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
     abstract abort(): void;
 
     protected static checkQueueProcessing(): void {
-        while (requestQueue.length > 0 && executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
-            const req = requestQueue.shift()!!!;
+        while (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests) {
+            const req = requestQueue.shift();
+            if (!req) {
+                return;
+            }
+
             blockedList.push(req);
-            const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || SyncTasks.Resolved();
-            blockPromise.finally(() => {
+            const blockPromise = (req._blockRequestUntil && req._blockRequestUntil()) || Promise.resolve();
+            blockPromise.then(() => {
                 remove(blockedList, req);
-            }).then(() => {
+
                 if (executingList.length < SimpleWebRequestOptions.MaxSimultaneousRequests && !req._aborted) {
                     executingList.push(req);
                     SimpleWebRequest._scheduleHungRequestCleanupIfNeeded();
@@ -245,6 +247,8 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
                     req._enqueue();
                 }
             }, (err: any) => {
+                remove(blockedList, req);
+
                 // fail the request if the block promise is rejected
                 req._respond('_blockRequestUntil rejected: ' + err);
             });
@@ -664,14 +668,14 @@ export abstract class SimpleWebRequestBase<TOptions extends WebRequestOptions = 
 }
 
 export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebRequestOptions> extends SimpleWebRequestBase<TOptions> {
-
-    private _deferred: SyncTasks.Deferred<WebResponse<TBody, TOptions>>;
+    private _resolve?: (resp: WebResponse<TBody, TOptions>) => void;
+    private _reject?: (resp?: any) => void;
 
     constructor(action: string,
             url: string,
             options: TOptions,
             getHeaders?: () => Headers,
-            blockRequestUntil?: () => SyncTasks.Promise<void> | undefined) {
+            blockRequestUntil?: () => Promise<void> | undefined) {
         super(action, url, options, getHeaders, blockRequestUntil);
     }
 
@@ -693,7 +697,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
             this._requestTimeoutTimer = undefined;
         }
 
-        if (!this._deferred) {
+        if (!this._resolve) {
             assert(false, 'Haven\'t even fired start() yet -- can\'t abort');
             return;
         }
@@ -707,21 +711,20 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
         }
     }
 
-    start(): SyncTasks.Promise<WebResponse<TBody, TOptions>> {
-        if (this._deferred) {
+    start(): Promise<WebResponse<TBody, TOptions>> {
+        if (this._resolve) {
             assert(false, 'WebRequest already started');
-            return SyncTasks.Rejected('WebRequest already started');
+            return Promise.reject('WebRequest already started');
         }
 
-        this._deferred = SyncTasks.Defer<WebResponse<TBody, TOptions>>();
-        this._deferred.onCancel(() => {
-            // Abort the XHR -- this should chain through to the fail case on readystatechange
-            this.abort();
+        const promise = new Promise<WebResponse<TBody, TOptions>>((res, rej) => {
+            this._resolve = res;
+            this._reject = rej;
         });
 
         this._enqueue();
 
-        return this._deferred.promise();
+        return promise;
     }
 
     protected _respond(errorStatusText?: string): void {
@@ -828,7 +831,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 responseParsingException: responseParsingException,
             };
 
-            this._deferred.resolve(resp);
+            this._resolve!!!(resp);
         } else {
             let errResp: WebErrorResponse<TOptions> = {
                 url: (this._xhr ? this._xhr.responseURL : undefined) || this._url,
@@ -898,7 +901,7 @@ export class SimpleWebRequest<TBody, TOptions extends WebRequestOptions = WebReq
                 }
             } else {
                 // No more retries -- fail.
-                this._deferred.reject(errResp);
+                this._reject!!!(errResp);
             }
         }
 

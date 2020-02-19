@@ -14,7 +14,8 @@ npm install --save simplerestclients
 
 ### `SimpleWebRequest`
 
-Wraps a single web request.  Has lots of overrides for priorization, delays, retry logic, error handling, etc.
+Wraps a single web request.  Takes an options structure with overrides for priorization, delays, retry logic, error handling, etc.  Has
+an `abort()` method to cancel the request early (will result in a rejected promise from the `start()` method).
 
 ### `GenericRestClient`
 
@@ -25,7 +26,6 @@ etc.
 ## GenericRestClient Sample Usage
 
 ```typescript
-import * as SyncTasks from 'synctasks';
 import { GenericRestClient, ApiCallOptions, Headers } from 'simplerestclients';
 
 interface User {
@@ -45,15 +45,15 @@ class MyRestClient extends GenericRestClient {
     }
 
     // Define public methods that expose the APIs provided through the REST service.
-    getAllUsers(): SyncTasks.Promise<User[]> {
+    getAllUsers(): Promise<User[]> {
         return this.performApiGet<User[]>('users');
     }
 
-    getUserById(id: string): SyncTasks.Promise<User> {
+    getUserById(id: string): Promise<User> {
         return this.performApiGet<User>(`user/${ id }`);
     }
 
-    setUser(user: User): SyncTasks.Promise<void> {
+    setUser(user: User): Promise<void> {
         return this.performApiPut<void>(`user/${ user.id }`, user);
     }
 }
