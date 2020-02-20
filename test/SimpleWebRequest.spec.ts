@@ -1,5 +1,4 @@
 import * as faker from 'faker';
-import * as SyncTasks from 'synctasks';
 
 import {
     ErrorHandlingType,
@@ -9,19 +8,13 @@ import {
     WebRequestPriority,
 } from '../src/SimpleWebRequest';
 
-import { DETAILED_RESPONSE } from './helpers';
+import { asyncTick, DETAILED_RESPONSE } from './helpers';
 
 describe('SimpleWebRequest', () => {
-    let catchExceptions = false;
-    const status = 200;
-
     beforeEach(() => {
-        catchExceptions = SyncTasks.config.catchExceptions;
-        SyncTasks.config.catchExceptions = false;
         jasmine.Ajax.install();
     });
     afterEach(() => {
-        SyncTasks.config.catchExceptions = catchExceptions;
         jasmine.Ajax.uninstall();
     });
 
@@ -42,17 +35,21 @@ describe('SimpleWebRequest', () => {
             responseParsingException,
         };
 
-        new SimpleWebRequest<string>(method, url, requestOptions)
+        let request: any;
+        setTimeout(() => {
+            request = jasmine.Ajax.requests.mostRecent();
+            request.respondWith({ responseText: JSON.stringify(''), status: statusCode });
+        }, 0);
+
+        return new SimpleWebRequest<string>(method, url, requestOptions)
             .start()
-            .then(onSuccess);
-
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({ responseText: JSON.stringify(''), status: statusCode });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(onSuccess).toHaveBeenCalledWith(response);
+            .then(onSuccess)
+            .then(() => {
+                expect(request.url).toEqual(url);
+                expect(request.method).toEqual(method);
+                expect(request.status).toEqual(statusCode);
+                expect(onSuccess).toHaveBeenCalledWith(response);
+            });
     });
 
     it('sends json POST request', () => {
@@ -77,17 +74,21 @@ describe('SimpleWebRequest', () => {
             responseParsingException,
         };
 
-        new SimpleWebRequest<string>(method, url, requestOptions)
+        let request: any;
+        setTimeout(() => {
+            request = jasmine.Ajax.requests.mostRecent();
+            request.respondWith({ responseText: JSON.stringify(body), status: statusCode });
+        }, 0);
+
+        return new SimpleWebRequest<string>(method, url, requestOptions)
             .start()
-            .then(onSuccess);
-
-        const request = jasmine.Ajax.requests.mostRecent();
-        request.respondWith({ responseText: JSON.stringify(body), status: statusCode });
-
-        expect(request.url).toEqual(url);
-        expect(request.method).toEqual(method);
-        expect(request.status).toEqual(statusCode);
-        expect(onSuccess).toHaveBeenCalledWith(response);
+            .then(onSuccess)
+            .then(() => {
+                expect(request.url).toEqual(url);
+                expect(request.method).toEqual(method);
+                expect(request.status).toEqual(statusCode);
+                expect(onSuccess).toHaveBeenCalledWith(response);
+            });
     });
 
     it('allows to set request headers', () => {
@@ -98,14 +99,16 @@ describe('SimpleWebRequest', () => {
         const method = 'POST';
         const url = faker.internet.url();
 
-        new SimpleWebRequest<string>(url, method, {}, () => headers).start();
+        let request: any;
+        setTimeout(() => {
+            request = jasmine.Ajax.requests.mostRecent();
+            request.respondWith({ status: 200 });
+        }, 0);
 
-        const request = jasmine.Ajax.requests.mostRecent();
-
-        expect(request.requestHeaders['X-Requested-With']).toEqual(headers['X-Requested-With']);
-        expect(request.requestHeaders['Max-Forwards']).toEqual(headers['Max-Forwards']);
-
-        request.respondWith({ status });
+        return new SimpleWebRequest<string>(method, url, {}, () => headers).start().then(() => {
+            expect(request.requestHeaders['X-Requested-With']).toEqual(headers['X-Requested-With']);
+            expect(request.requestHeaders['Max-Forwards']).toEqual(headers['Max-Forwards']);
+        });
     });
 
     it('forbids to set Accept header', () => {
@@ -117,9 +120,9 @@ describe('SimpleWebRequest', () => {
         const method = 'GET';
         const url = faker.internet.url();
         const error = `Don't set Accept with options.headers -- use it with the options.acceptType property`;
-        const request = new SimpleWebRequest<string>(url, method, {}, () => headers);
+        const request = new SimpleWebRequest<string>(method, url, {}, () => headers);
 
-        expect(() => request.start()).toThrowError(error);
+        expect(() => (request as any)._fire()).toThrowError(error);
         expect(console.error).toHaveBeenCalledWith(error);
     });
 
@@ -132,9 +135,9 @@ describe('SimpleWebRequest', () => {
         const method = 'GET';
         const url = faker.internet.url();
         const error = `Don't set Content-Type with options.headers -- use it with the options.contentType property`;
-        const request = new SimpleWebRequest<string>(url, method, {}, () => headers);
+        const request = new SimpleWebRequest<string>(method, url, {}, () => headers);
 
-        expect(() => request.start()).toThrowError(error);
+        expect(() => (request as any)._fire()).toThrowError(error);
         expect(console.error).toHaveBeenCalledWith(error);
     });
 
@@ -161,132 +164,186 @@ describe('SimpleWebRequest', () => {
             const onSuccessCritical2 = jasmine.createSpy('onSuccessCritical2');
             const status = 200;
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Low }).start().then(onSuccessLow1);
+            const p1 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Low })
+                .start().then(onSuccessLow1);
             jasmine.clock().tick(10);
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }).start().then(onSuccessCritical1);
+            const p2 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical })
+                .start().then(onSuccessCritical1);
             jasmine.clock().tick(10);
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Low }).start().then(onSuccessLow2);
+            const p3 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Low })
+                .start().then(onSuccessLow2);
             jasmine.clock().tick(10);
 
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             // add a new request to kick the queue
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }).start().then(onSuccessCritical2);
+            const p4 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical })
+                .start().then(onSuccessCritical2);
 
-            // only one is executed
-            expect(jasmine.Ajax.requests.count()).toBe(1);
-            jasmine.Ajax.requests.mostRecent().respondWith({status});
-            // they're executed in correct order
-            expect(onSuccessCritical1).toHaveBeenCalled();
+            asyncTick().then(() => {
+                // only one is executed
+                expect(jasmine.Ajax.requests.count()).toBe(1);
+                jasmine.Ajax.requests.mostRecent().respondWith({status});
+            });
 
-            jasmine.Ajax.requests.mostRecent().respondWith({status});
-            expect(onSuccessCritical2).toHaveBeenCalled();
+            return p2.then(() => {
+                // they're executed in correct order
+                expect(onSuccessCritical1).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
+                jasmine.Ajax.requests.mostRecent().respondWith({status});
 
-            jasmine.Ajax.requests.mostRecent().respondWith({status});
-            expect(onSuccessLow1).toHaveBeenCalled();
+                return p4;
+            }).then(() => {
+                expect(onSuccessCritical2).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
+                jasmine.Ajax.requests.mostRecent().respondWith({status});
 
-            jasmine.Ajax.requests.mostRecent().respondWith({status});
-            expect(onSuccessLow2).toHaveBeenCalled();
+                return p1;
+            }).then(() => {
+                expect(onSuccessLow1).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(4);
+                jasmine.Ajax.requests.mostRecent().respondWith({status});
+
+                return p3;
+            }).then(() => {
+                expect(onSuccessLow2).toHaveBeenCalled();
+            });
         });
 
         it('blocks the request with custom promise', () => {
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             const url = faker.internet.url();
             const method = 'GET';
-            const blockDefer = SyncTasks.Defer<void>();
+            let blockResolver: () => void = () => undefined;
+            const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
             const onSuccess1 = jasmine.createSpy('onSuccess1');
-            new SimpleWebRequest<string>(url, method, {}, undefined, () => blockDefer.promise()).start().then(onSuccess1);
+            const p1 = new SimpleWebRequest<string>(method, url, {}, undefined, () => blockPromise).start().then(onSuccess1);
 
-            expect(jasmine.Ajax.requests.count()).toBe(0);
-            blockDefer.resolve(void 0);
+            asyncTick().then(() => {
+                expect(jasmine.Ajax.requests.count()).toBe(0);
+                blockResolver();
 
-            const request = jasmine.Ajax.requests.mostRecent();
-            request.respondWith({ status: 200 });
-            expect(onSuccess1).toHaveBeenCalled();
+                return asyncTick();
+            }).then(() => {
+                const request = jasmine.Ajax.requests.mostRecent();
+                request.respondWith({ status: 200 });
+            });
+
+            return p1.then(() => {
+                expect(onSuccess1).toHaveBeenCalled();
+            });
         });
 
         it('after the request is unblocked, it\'s returned to the queue with correct priority', () => {
             const url = faker.internet.url();
             const method = 'GET';
-            const blockDefer = SyncTasks.Defer<void>();
+            let blockResolver: () => void = () => undefined;
+            const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
             const onSuccessHigh = jasmine.createSpy('onSuccessHigh');
             const onSuccessLow = jasmine.createSpy('onSuccessLow');
             const onSuccessCritical = jasmine.createSpy('onSuccessCritical');
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }, undefined, () => blockDefer.promise())
+            const p1 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.High }, undefined, () => blockPromise)
                 .start()
                 .then(onSuccessHigh);
             jasmine.clock().tick(10);
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Low }).start().then(onSuccessLow);
+            const p2 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Low }).start().then(onSuccessLow);
             jasmine.clock().tick(10);
 
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             // add a new request to kick the queue
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }).start().then(onSuccessCritical);
+            const p3 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical }).start().then(onSuccessCritical);
 
             // unblock the request
-            blockDefer.resolve(void 0);
+            blockResolver();
 
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            // first the critical one gets sent
-            expect(onSuccessCritical).toHaveBeenCalled();
+            // have to do an awkward async tick to get the blocking blocker to resolve before the request goes out
+            asyncTick().then(() => {
+                expect(jasmine.Ajax.requests.count()).toBe(1);
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
+            });
 
-            // then the high, which was returned to the queue at after getting unblocked
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            expect(onSuccessHigh).toHaveBeenCalled();
+            return p3.then(() => {
+                // first the critical one gets sent
+                expect(onSuccessCritical).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
 
-            // and the low priority one gets sent last
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            expect(onSuccessLow).toHaveBeenCalled();
+                // then the high, which was returned to the queue at after getting unblocked
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
+
+                return p1;
+            }).then(() => {
+                expect(onSuccessHigh).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
+
+                // and the low priority one gets sent last
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
+
+                return p2;
+            }).then(() => {
+                expect(onSuccessLow).toHaveBeenCalled();
+            });
         });
 
         it('checks the blocked function again, once the request is on top of the queue', () => {
             const url = faker.internet.url();
             const method = 'GET';
-            const blockDefer = SyncTasks.Defer<void>();
+            let blockResolver: () => void = () => undefined;
+            const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
             const onSuccessCritical = jasmine.createSpy('onSuccessCritical');
             const onSuccessHigh = jasmine.createSpy('onSuccessHigh');
             const onSuccessHigh2 = jasmine.createSpy('onSuccessHigh2');
-            const blockSpy = jasmine.createSpy('blockSpy').and.callFake(() => blockDefer.promise());
+            const blockSpy = jasmine.createSpy('blockSpy').and.callFake(() => blockPromise);
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, blockSpy)
+            const p1 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical }, undefined, blockSpy)
                 .start()
                 .then(onSuccessCritical);
             jasmine.clock().tick(10);
 
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }).start().then(onSuccessHigh);
+            const p2 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.High }).start().then(onSuccessHigh);
             jasmine.clock().tick(10);
 
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             // add a new request to kick the queue
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.High }).start().then(onSuccessHigh2);
+            const p3 = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.High }).start().then(onSuccessHigh2);
 
-            expect(blockSpy).toHaveBeenCalled();
+            asyncTick().then(() => {
+                expect(blockSpy).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(1);
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
+            });
 
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            expect(onSuccessHigh).toHaveBeenCalled();
+            return p2.then(() => {
+                expect(onSuccessHigh).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
 
-            // unblock the request, it will go back to the queue after the currently executed request
-            blockDefer.resolve(void 0);
+                // unblock the request, it will go back to the queue after the currently executed request
+                blockResolver();
 
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            expect(onSuccessHigh2).toHaveBeenCalled();
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
 
-            // check if the request at the top of the queue got called again
-            expect(blockSpy).toHaveBeenCalledTimes(2);
+                return p3;
+            }).then(() => {
+                expect(onSuccessHigh2).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
 
-            jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
-            expect(onSuccessCritical).toHaveBeenCalled();
+                jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
+
+                return p1;
+            }).then(() => {
+                expect(onSuccessCritical).toHaveBeenCalled();
+            });
         });
 
         it('fails the request, if the blocking promise rejects', done => {
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             const url = faker.internet.url();
             const method = 'GET';
-            const blockDefer = SyncTasks.Defer<void>();
+            let blockRejecter: (err: any) => void = () => undefined;
+            const blockPromise = new Promise<void>((res, rej) => { blockRejecter = rej; });
             const errorString = 'Terrible error';
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise())
+            new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical }, undefined, () => blockPromise)
                 .start()
                 .then(() => fail(), (err: WebErrorResponse) => {
                     expect(err.statusCode).toBe(0);
@@ -294,21 +351,30 @@ describe('SimpleWebRequest', () => {
                     done();
                 });
 
-            blockDefer.reject(errorString);
+            blockRejecter(errorString);
         });
 
         it('does not attempt to fire aborted request, if it was aborted while blocked', () => {
             SimpleWebRequestOptions.MaxSimultaneousRequests = 1;
             const url = faker.internet.url();
             const method = 'GET';
-            const blockDefer = SyncTasks.Defer<void>();
-            new SimpleWebRequest<string>(url, method, { priority: WebRequestPriority.Critical }, undefined, () => blockDefer.promise())
-                .start()
-                .cancel();
+            let blockResolver: () => void = () => undefined;
+            const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
+            const req = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical }, undefined, () => blockPromise);
+            const p1 = req.start();
 
-            blockDefer.resolve(void 0);
-            expect(jasmine.Ajax.requests.count()).toBe(0);
-
+            return asyncTick().then(() => {
+                expect(jasmine.Ajax.requests.count()).toBe(0);
+                req.abort();
+                return asyncTick();
+            }).then(() => {
+                blockResolver();
+                return p1;
+            }).then(() => {
+                fail();
+            }, () => {
+                expect(jasmine.Ajax.requests.count()).toBe(0);
+            });
         });
     });
 
@@ -324,7 +390,7 @@ describe('SimpleWebRequest', () => {
         it('fails the request with "timedOut: true" if it times out without retries', done => {
             const url = faker.internet.url();
             const method = 'GET';
-            new SimpleWebRequest<string>(url, method, { timeout: 10, customErrorHandler: () => ErrorHandlingType.DoNotRetry })
+            new SimpleWebRequest<string>(method, url, { timeout: 10, customErrorHandler: () => ErrorHandlingType.DoNotRetry })
                 .start()
                 .then(() => {
                     expect(false).toBeTruthy();
@@ -335,17 +401,20 @@ describe('SimpleWebRequest', () => {
                     done();
                 });
 
-            jasmine.clock().tick(10);
+            asyncTick().then(() => {
+                jasmine.clock().tick(10);
+            });
         });
 
         it('timedOut flag is reset on retry', done => {
             const url = faker.internet.url();
             const method = 'GET';
-            const requestPromise = new SimpleWebRequest<string>(url, method, {
+            const req = new SimpleWebRequest<string>(method, url, {
                 timeout: 10,
                 retries: 1,
                 customErrorHandler: () => ErrorHandlingType.RetryCountedWithBackoff,
-            }).start();
+            });
+            const requestPromise = req.start();
 
             requestPromise
                 .then(() => {
@@ -359,8 +428,10 @@ describe('SimpleWebRequest', () => {
                 });
 
             // first try will time out, the second one will be aborted
-            jasmine.clock().tick(10);
-            requestPromise.cancel();
+            asyncTick().then(() => {
+                jasmine.clock().tick(10);
+                req.abort();
+            });
         });
     });
 
