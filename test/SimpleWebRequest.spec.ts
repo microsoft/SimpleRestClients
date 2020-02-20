@@ -122,12 +122,8 @@ describe('SimpleWebRequest', () => {
         const error = `Don't set Accept with options.headers -- use it with the options.acceptType property`;
         const request = new SimpleWebRequest<string>(method, url, {}, () => headers);
 
-        request.start().then(() => {
-            expect(false).toBeTrue();
-        }, err => {
-            expect(err).toEqual(error);
-            expect(console.error).toHaveBeenCalledWith(error);
-        });
+        expect(() => (request as any)._fire()).toThrowError(error);
+        expect(console.error).toHaveBeenCalledWith(error);
     });
 
     it('forbids to set Content-Type header', () => {
@@ -141,12 +137,8 @@ describe('SimpleWebRequest', () => {
         const error = `Don't set Content-Type with options.headers -- use it with the options.contentType property`;
         const request = new SimpleWebRequest<string>(method, url, {}, () => headers);
 
-        request.start().then(() => {
-            expect(false).toBeTrue();
-        }, err => {
-            expect(err).toEqual(error);
-            expect(console.error).toHaveBeenCalledWith(error);
-        });
+        expect(() => (request as any)._fire()).toThrowError(error);
+        expect(console.error).toHaveBeenCalledWith(error);
     });
 
     describe('blocking', () => {
@@ -198,16 +190,19 @@ describe('SimpleWebRequest', () => {
             return p2.then(() => {
                 // they're executed in correct order
                 expect(onSuccessCritical1).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
                 jasmine.Ajax.requests.mostRecent().respondWith({status});
 
                 return p4;
             }).then(() => {
                 expect(onSuccessCritical2).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
                 jasmine.Ajax.requests.mostRecent().respondWith({status});
 
                 return p1;
             }).then(() => {
                 expect(onSuccessLow1).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(4);
                 jasmine.Ajax.requests.mostRecent().respondWith({status});
 
                 return p3;
@@ -265,12 +260,14 @@ describe('SimpleWebRequest', () => {
 
             // have to do an awkward async tick to get the blocking blocker to resolve before the request goes out
             asyncTick().then(() => {
+                expect(jasmine.Ajax.requests.count()).toBe(1);
                 jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
             });
 
             return p3.then(() => {
                 // first the critical one gets sent
                 expect(onSuccessCritical).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
 
                 // then the high, which was returned to the queue at after getting unblocked
                 jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
@@ -278,6 +275,7 @@ describe('SimpleWebRequest', () => {
                 return p1;
             }).then(() => {
                 expect(onSuccessHigh).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
 
                 // and the low priority one gets sent last
                 jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
@@ -312,11 +310,13 @@ describe('SimpleWebRequest', () => {
 
             asyncTick().then(() => {
                 expect(blockSpy).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(1);
                 jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
             });
 
             return p2.then(() => {
                 expect(onSuccessHigh).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(2);
 
                 // unblock the request, it will go back to the queue after the currently executed request
                 blockResolver();
@@ -326,6 +326,7 @@ describe('SimpleWebRequest', () => {
                 return p3;
             }).then(() => {
                 expect(onSuccessHigh2).toHaveBeenCalled();
+                expect(jasmine.Ajax.requests.count()).toBe(3);
 
                 jasmine.Ajax.requests.mostRecent().respondWith({ status: 200 });
 
@@ -360,11 +361,20 @@ describe('SimpleWebRequest', () => {
             let blockResolver: () => void = () => undefined;
             const blockPromise = new Promise<void>((res, rej) => { blockResolver = res; });
             const req = new SimpleWebRequest<string>(method, url, { priority: WebRequestPriority.Critical }, undefined, () => blockPromise);
-            req.start();
-            req.abort();
+            const p1 = req.start();
 
-            blockResolver();
-            expect(jasmine.Ajax.requests.count()).toBe(0);
+            return asyncTick().then(() => {
+                expect(jasmine.Ajax.requests.count()).toBe(0);
+                req.abort();
+                return asyncTick();
+            }).then(() => {
+                blockResolver();
+                return p1;
+            }).then(() => {
+                fail();
+            }, () => {
+                expect(jasmine.Ajax.requests.count()).toBe(0);
+            });
         });
     });
 
