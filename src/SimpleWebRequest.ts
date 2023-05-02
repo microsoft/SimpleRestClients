@@ -160,8 +160,8 @@ export let SimpleWebRequestOptions: ISimpleWebRequestOptions = {
 };
 
 export function DefaultErrorHandler(webRequest: SimpleWebRequestBase, errResp: WebTransportErrorResponse): ErrorHandlingType {
-    if (errResp.canceled || !errResp.statusCode || errResp.statusCode >= 400 && errResp.statusCode < 600) {
-        // Fail canceled/0/4xx/5xx requests immediately.
+    if (errResp.canceled || errResp.statusCode >= 400 && errResp.statusCode < 600) {
+        // Fail canceled/4xx/5xx requests immediately.
         // These are permenent failures, and shouldn't have retry logic applied to them.
         return ErrorHandlingType.DoNotRetry;
     }
